@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 23)
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILD_TYPE )
 
+include(cmake/Patches.cmake)
+
 include(CheckIPOSupported)
 check_ipo_supported()
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
