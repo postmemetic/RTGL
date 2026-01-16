@@ -826,7 +826,32 @@ auto RTGL1::VulkanDevice::Render( VkCommandBuffer& cmd, const RgDrawFrameInfo& d
         };
 
         // upscale finalized image
-        if( renderResolution.IsNvDlssEnabled() )
+        if( nvDlss45 && nvDlss45->IsActive() )
+        {
+            static bool dlss45Logged = false;
+            if( !dlss45Logged )
+            {
+                Print( "DLSS45 stub active: Evaluate() hook reached.", RG_MESSAGE_SEVERITY_INFO );
+                dlss45Logged = true;
+            }
+
+            DLSS45::EvaluateParams params = {
+                .cmd          = cmd,
+                .frameIndex   = frameIndex,
+                .framebuffers = framebuffers.get(),
+                .resolution   = renderResolution.GetResolutionState(),
+                .jitter       = jitter,
+                .timeDelta    = timeDelta,
+                .resetHistory = resetHistory,
+            };
+
+            if( auto u = nvDlss45->Evaluate( params ) )
+            {
+                accum       = *u;
+                needHudOnly = false;
+            }
+        }
+        else if( renderResolution.IsNvDlssEnabled() )
         {
             if( nvDlss3dx12 && swapchain->WithDLSS3FrameGeneration() )
             {

@@ -48,6 +48,7 @@
 #include "Sharpening.h"
 #include "DLSS2.h"
 #include "DLSS3_DX12.h"
+#include "DLSS45.h"
 #include "RenderResolutionHelper.h"
 #include "EffectWipe.h"
 #include "EffectSimple_Instances.h"
@@ -201,6 +202,7 @@ private:
     std::shared_ptr< FSR3_DX12 >                 amdFsr3dx12;
     std::shared_ptr< DLSS2 >                     nvDlss2;
     std::shared_ptr< DLSS3_DX12 >                nvDlss3dx12;
+    std::shared_ptr< DLSS45 >                    nvDlss45;
     std::shared_ptr< Sharpening >                sharpening;
     std::shared_ptr< EffectWipe >                effectWipe;
     std::shared_ptr< EffectRadialBlur >          effectRadialBlur;

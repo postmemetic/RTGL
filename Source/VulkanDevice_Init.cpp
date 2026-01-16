@@ -461,6 +461,7 @@ RTGL1::VulkanDevice::VulkanDevice( const RgInstanceCreateInfo* info )
         physDevice->Get(),
         appGuid.c_str() );
 #endif
+    nvDlss45 = DLSS45::MakeInstance();
 
     sharpening = std::make_shared< Sharpening >( 
         device, 
@@ -574,6 +575,7 @@ RTGL1::VulkanDevice::~VulkanDevice()
     amdFsr3dx12.reset();
     nvDlss2.reset();
     nvDlss3dx12.reset();
+    nvDlss45.reset();
     sharpening.reset();
     effectWipe.reset();
     effectRadialBlur.reset();
