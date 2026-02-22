@@ -95,6 +95,8 @@ VkCommandBuffer RTGL1::VulkanDevice::BeginFrame( const RgStartFrameInfo& info )
                              vkswapchainAvailableSemaphores[ frameIndex ] );
     m_skipGeneratedFrame =
         ( resolution.frameGeneration == RG_FRAME_GENERATION_MODE_WITHOUT_GENERATED );
+    m_frameGenerationFrames = resolution.frameGenerationFrames > 0 ? resolution.frameGenerationFrames
+                                                                   : 1;
 
 
     VkSemaphore semaphoreToWaitOnSubmit = VK_NULL_HANDLE;
@@ -866,7 +868,8 @@ auto RTGL1::VulkanDevice::Render( VkCommandBuffer& cmd, const RgDrawFrameInfo& d
                                                  resetHistory,
                                                  cameraInfo,
                                                  frameId,
-                                                 m_skipGeneratedFrame ) )
+                                                 m_skipGeneratedFrame,
+                                                 m_frameGenerationFrames ) )
                 {
                     accum = *u;
                     needHudOnly = false; // providing FB_IMAGE_INDEX_HUD_ONLY to DLSS3 doesn't work

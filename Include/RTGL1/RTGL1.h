@@ -797,6 +797,11 @@ typedef struct RgStartFrameRenderResolutionParams
     RgRenderUpscaleTechnique upscaleTechnique;
     RgRenderResolutionMode   resolutionMode;
     RgFrameGenerationMode    frameGeneration;
+    // For DLSS-G/FSR3 frame generation:
+    // 1 = generate one frame between rendered frames (2x)
+    // 2 = generate two frames between rendered frames (3x)
+    // If 0, backend-specific default is used.
+    uint32_t                 frameGenerationFrames;
     RgBool32                 preferDxgiPresent;
     RgRenderSharpenTechnique sharpenTechnique;
     // Used, if resolutionMode is RG_RENDER_RESOLUTION_MODE_CUSTOM

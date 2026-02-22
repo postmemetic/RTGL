@@ -67,6 +67,17 @@ float     ctl_Metallicity     = 1.0f;
 RgBool32  ctl_MoveBoxes       = 0;
 uint32_t  ctl_UpscaleMode     = 2; // 0=FSR2, 1=DLSS2, 2=DLSS3(no generated), 3=DLSS3+FG
 uint32_t  ctl_RenderResolutionMode = 3; // 0 = Ultra perf, 1 = Perf, 2 = Balanced, 3 = Quality, 4 = Native AA
+uint32_t  ctl_FrameGenerationVariant = 0; // 0 = 2x, 1 = 3x
+
+uint32_t GetFrameGenerationFrames()
+{
+    return ctl_FrameGenerationVariant == 0 ? 1 : 2; // generated frames per rendered frame
+}
+
+const char* GetFrameGenerationVariantName()
+{
+    return ctl_FrameGenerationVariant == 0 ? "2x" : "3x";
+}
 
 std::string GetUpscaleModeName()
 {
@@ -86,8 +97,12 @@ std::string GetUpscaleModeName()
     {
         case 0: return std::string( "FSR2 " ) + renderResolutionMode;
         case 1: return std::string( "DLSS2  ") + renderResolutionMode;
-        case 2: return std::string( "DLSS3 (no FG) " ) + renderResolutionMode;
-        case 3: return std::string( "DLSS3 + FG " ) + renderResolutionMode;
+        case 2:
+            return std::string( "DLSS3 (no FG, variant " ) + GetFrameGenerationVariantName() +
+                   ") " + renderResolutionMode;
+        case 3:
+            return std::string( "DLSS3 + FG (" ) + GetFrameGenerationVariantName() + ") " +
+                   renderResolutionMode;
         default: return std::string( "Unknown Upscaler " ) + renderResolutionMode;
     }
 }
@@ -96,17 +111,21 @@ void UpdateWindowTitleWithUpscaleMode()
 {
     static int lastMode = -1;
     static int lastQualityMode = -1;
-    if( !g_GlfwHandle || lastMode == int( ctl_UpscaleMode ) && lastQualityMode == int( ctl_RenderResolutionMode ))
+    static int lastFgVariant = -1;
+    if( !g_GlfwHandle || ( lastMode == int( ctl_UpscaleMode ) &&
+                           lastQualityMode == int( ctl_RenderResolutionMode ) &&
+                           lastFgVariant == int( ctl_FrameGenerationVariant ) ) )
     {
         return;
     }
 
     std::string title = std::string{ "RTGL1 Test | Upscaler: " } + GetUpscaleModeName() +
-                        " (press U and T to cycle)";
+                        " (press U/T/G to cycle)";
     glfwSetWindowTitle( g_GlfwHandle, title.c_str() );
     std::cout << "[RtglExample] " << title << std::endl;
     lastMode = int( ctl_UpscaleMode );
     lastQualityMode = int( ctl_RenderResolutionMode );
+    lastFgVariant = int( ctl_FrameGenerationVariant );
 }
 
 const char* ToString( RgRenderUpscaleTechnique v )
@@ -151,13 +170,15 @@ struct RequestedRenderState
     RgRenderUpscaleTechnique upscaleTechnique;
     RgFrameGenerationMode    frameGeneration;
     RgRenderResolutionMode   resolutionMode;
+    uint32_t                 frameGenerationFrames;
 };
 
 bool operator==( const RequestedRenderState& a, const RequestedRenderState& b )
 {
     return a.upscaleTechnique == b.upscaleTechnique &&
            a.frameGeneration == b.frameGeneration &&
-           a.resolutionMode == b.resolutionMode;
+           a.resolutionMode == b.resolutionMode &&
+           a.frameGenerationFrames == b.frameGenerationFrames;
 }
 
 void LogRenderStateChanges( RgInterface& rt, const RequestedRenderState& requested )
@@ -180,7 +201,8 @@ void LogRenderStateChanges( RgInterface& rt, const RequestedRenderState& request
     {
         std::cout << "[RtglExample] Requested state: upscaler=" << ToString( requested.upscaleTechnique )
                   << ", frameGeneration=" << ToString( requested.frameGeneration )
-                  << ", resolutionMode=" << ToString( requested.resolutionMode ) << std::endl;
+                  << ", resolutionMode=" << ToString( requested.resolutionMode )
+                  << ", frameGenerationFrames=" << requested.frameGenerationFrames << std::endl;
     }
 
     if( stateChanged || availabilityChange || reasonChanged )
@@ -313,6 +335,7 @@ void ProcessInput()
     ControlSwitch( GLFW_KEY_Z,          ctl_MoveBoxes );
     ControlSwitch( GLFW_KEY_U,          ctl_UpscaleMode, 4 );
     ControlSwitch( GLFW_KEY_T,          ctl_RenderResolutionMode, 5 );
+    ControlSwitch( GLFW_KEY_G,          ctl_FrameGenerationVariant, 2 );
     
 }
 
@@ -704,6 +727,7 @@ void MainLoop( RgInterface& rt, std::string_view gltfPath )
 
         {
             RequestedRenderState requested = {};
+            requested.frameGenerationFrames = GetFrameGenerationFrames();
 
             switch( ctl_UpscaleMode )
             {
@@ -754,6 +778,7 @@ void MainLoop( RgInterface& rt, std::string_view gltfPath )
                 .upscaleTechnique = requested.upscaleTechnique,
                 .resolutionMode   = requested.resolutionMode,
                 .frameGeneration  = requested.frameGeneration,
+                .frameGenerationFrames = requested.frameGenerationFrames,
             };
 
             auto startInfo = RgStartFrameInfo{

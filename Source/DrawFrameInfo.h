@@ -246,6 +246,7 @@ namespace detail
             .upscaleTechnique          = RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2,
             .resolutionMode            = RG_RENDER_RESOLUTION_MODE_QUALITY,
             .frameGeneration           = RG_FRAME_GENERATION_MODE_OFF,
+            .frameGenerationFrames     = 1,
             .preferDxgiPresent         = false,
             .sharpenTechnique          = RG_RENDER_SHARPEN_TECHNIQUE_NONE,
             .customRenderSize          = {},

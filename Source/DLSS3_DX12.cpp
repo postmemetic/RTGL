@@ -672,8 +672,12 @@ auto RTGL1::DLSS3_DX12::Apply( ID3D12CommandList*            dx12cmd,
                                bool                          resetAccumulation,
                                const Camera&                 camera,
                                uint32_t                      frameId,
-                               bool skipGeneratedFrame ) -> std::optional< FramebufferImageIndex >
+                               bool                          skipGeneratedFrame,
+                               uint32_t                      numFramesToGenerate )
+    -> std::optional< FramebufferImageIndex >
 {
+    sl::Result slr{};
+
     if( !dx12cmd )
     {
         debug::Warning( "DLSS3_DX12::Apply() was ignored, as ID3D12CommandList failed" );
@@ -757,9 +761,36 @@ auto RTGL1::DLSS3_DX12::Apply( ID3D12CommandList*            dx12cmd,
     }
 
     {
+        uint32_t dlssgFramesToGenerate = numFramesToGenerate > 0 ? numFramesToGenerate : 1;
+
+        {
+            sl::DLSSGState dlssgState{};
+            if( pfn.slDLSSGGetState )
+            {
+                if( SL_FAILED(
+                        slr,
+                        pfn.slDLSSGGetState( sl::ViewportHandle{ 0 }, dlssgState, nullptr ) ) )
+                {
+                    debug::Warning(
+                        "slDLSSGGetState (pre-clamp query) fail. Error code: {}",
+                        uint32_t( slr ) );
+                }
+                else if( dlssgState.numFramesToGenerateMax > 0 &&
+                         dlssgFramesToGenerate > dlssgState.numFramesToGenerateMax )
+                {
+                    debug::Warning(
+                        "DLSS-G requested numFramesToGenerate={} exceeds device max={}. Clamping.",
+                        dlssgFramesToGenerate,
+                        dlssgState.numFramesToGenerateMax );
+                    dlssgFramesToGenerate = dlssgState.numFramesToGenerateMax;
+                }
+            }
+        }
+
         auto dlssgConst = sl::DLSSGOptions{};
         {
             dlssgConst.mode            = skipGeneratedFrame ? sl::DLSSGMode::eOff : sl::DLSSGMode::eOn;
+            dlssgConst.numFramesToGenerate = dlssgFramesToGenerate;
             dlssgConst.mvecDepthWidth  = sourceSize.width;
             dlssgConst.mvecDepthHeight = sourceSize.height;
             dlssgConst.colorWidth      = targetSize.width;
@@ -910,6 +941,8 @@ auto RTGL1::DLSS3_DX12::GetOptimalSettings( uint32_t               userWidth,
                                             RgRenderResolutionMode mode ) const
     -> std::pair< uint32_t, uint32_t >
 {
+    sl::Result slr{};
+
     if( !pfn.Valid() )
     {
         assert( 0 );

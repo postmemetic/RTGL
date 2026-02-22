@@ -77,7 +77,9 @@ public:
                 bool                          resetAccumulation,
                 const Camera&                 camera,
                 uint32_t                      frameId,
-                bool skipGeneratedFrame ) -> std::optional< FramebufferImageIndex >;
+                bool                          skipGeneratedFrame,
+                uint32_t                      numFramesToGenerate )
+        -> std::optional< FramebufferImageIndex >;
 
     void CopyDX12OutputToVk( VkCommandBuffer        cmd,
                              uint32_t               frameIndex,
@@ -100,4 +102,3 @@ private:
 };
 
 }
-
