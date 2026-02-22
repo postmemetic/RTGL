@@ -24,6 +24,8 @@ SOFTWARE.
 
 #pragma once
 
+#include <RTGL1/RTGL1.h>
+
 #include "Camera.h"
 #include "Framebuffers.h"
 
@@ -40,6 +42,16 @@ namespace RTGL1
 
 
 class RenderResolutionHelper;
+
+struct DlssPresetOverrides
+{
+    RgNvidiaDlssPreset dlaa{ RG_NVIDIA_DLSS_PRESET_DEFAULT };
+    RgNvidiaDlssPreset quality{ RG_NVIDIA_DLSS_PRESET_DEFAULT };
+    RgNvidiaDlssPreset balanced{ RG_NVIDIA_DLSS_PRESET_DEFAULT };
+    RgNvidiaDlssPreset performance{ RG_NVIDIA_DLSS_PRESET_DEFAULT };
+    RgNvidiaDlssPreset ultraPerformance{ RG_NVIDIA_DLSS_PRESET_DEFAULT };
+    RgNvidiaDlssPreset ultraQuality{ RG_NVIDIA_DLSS_PRESET_DEFAULT };
+};
 
 
 class DLSS3_DX12
@@ -78,7 +90,8 @@ public:
                 const Camera&                 camera,
                 uint32_t                      frameId,
                 bool                          skipGeneratedFrame,
-                uint32_t                      numFramesToGenerate )
+                uint32_t                      numFramesToGenerate,
+                const DlssPresetOverrides&    dlssPresets )
         -> std::optional< FramebufferImageIndex >;
 
     void CopyDX12OutputToVk( VkCommandBuffer        cmd,
@@ -88,7 +101,9 @@ public:
 
     auto GetOptimalSettings( uint32_t               userWidth,
                              uint32_t               userHeight,
-                             RgRenderResolutionMode mode ) const -> std::pair< uint32_t, uint32_t >;
+                             RgRenderResolutionMode mode,
+                             const DlssPresetOverrides& dlssPresets ) const
+        -> std::pair< uint32_t, uint32_t >;
 
     void Reflex_SimStart( uint32_t frameId );
     void Reflex_SimEnd();

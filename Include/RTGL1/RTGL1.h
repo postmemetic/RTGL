@@ -789,6 +789,20 @@ typedef enum RgRenderResolutionMode
     RG_RENDER_RESOLUTION_MODE_NATIVE_AA,
 } RgRenderResolutionMode;
 
+// DLSS Super Resolution preset/model selection.
+// Notes:
+// - DEFAULT delegates to NVIDIA runtime defaults.
+// - J is generally an older/legacy path.
+// - K is transformer-based and usually recommended for quality.
+// - F is the default for Ultra Performance mode.
+typedef enum RgNvidiaDlssPreset
+{
+    RG_NVIDIA_DLSS_PRESET_DEFAULT,
+    RG_NVIDIA_DLSS_PRESET_F,
+    RG_NVIDIA_DLSS_PRESET_J,
+    RG_NVIDIA_DLSS_PRESET_K,
+} RgNvidiaDlssPreset;
+
 // Can be linked after RgStartFrameInfo.
 typedef struct RgStartFrameRenderResolutionParams
 {
@@ -802,6 +816,15 @@ typedef struct RgStartFrameRenderResolutionParams
     // 2 = generate two frames between rendered frames (3x)
     // If 0, backend-specific default is used.
     uint32_t                 frameGenerationFrames;
+    // DLSS SR preset selection per quality mode.
+    // Applied only when upscaleTechnique == RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS.
+    // If unsupported by current DLSS runtime/driver, implementation may fall back.
+    RgNvidiaDlssPreset       dlssPresetDlaa;
+    RgNvidiaDlssPreset       dlssPresetQuality;
+    RgNvidiaDlssPreset       dlssPresetBalanced;
+    RgNvidiaDlssPreset       dlssPresetPerformance;
+    RgNvidiaDlssPreset       dlssPresetUltraPerformance;
+    RgNvidiaDlssPreset       dlssPresetUltraQuality;
     RgBool32                 preferDxgiPresent;
     RgRenderSharpenTechnique sharpenTechnique;
     // Used, if resolutionMode is RG_RENDER_RESOLUTION_MODE_CUSTOM

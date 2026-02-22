@@ -607,12 +607,37 @@ sl::Resource ToSlResource( const RTGL1::Framebuffers&   framebuffers,
     return r;
 }
 
-sl::DLSSOptions MakeDlssOptions( uint32_t targetWidth, uint32_t targetHeight, sl::DLSSMode mode )
+sl::DLSSOptions MakeDlssOptions( uint32_t                         targetWidth,
+                                 uint32_t                         targetHeight,
+                                 sl::DLSSMode                     mode,
+                                 const RTGL1::DlssPresetOverrides& presets )
 {
+    auto toSlPreset = []( RgNvidiaDlssPreset p ) {
+        switch( p )
+        {
+            case RG_NVIDIA_DLSS_PRESET_DEFAULT: return sl::DLSSPreset::eDefault;
+            case RG_NVIDIA_DLSS_PRESET_F: return sl::DLSSPreset::ePresetF;
+            case RG_NVIDIA_DLSS_PRESET_J: return sl::DLSSPreset::ePresetJ;
+            case RG_NVIDIA_DLSS_PRESET_K: return sl::DLSSPreset::ePresetK;
+            default: return sl::DLSSPreset::eDefault;
+        }
+    };
+
     // Presets A-E are removed in newer Streamline/DLSS SDKs.
-    // Use K for DLAA/Quality/Balanced/Performance and F for Ultra Performance.
+    // Keep legacy force-default override, otherwise use per-mode caller selection.
     const bool forceDefault = RTGL1::LibConfig().dlssForceDefaultPreset;
-    sl::DLSSPreset preset   = forceDefault ? sl::DLSSPreset::eDefault : sl::DLSSPreset::ePresetK;
+    auto       presetDlaa =
+        forceDefault ? sl::DLSSPreset::eDefault : toSlPreset( presets.dlaa );
+    auto presetQuality =
+        forceDefault ? sl::DLSSPreset::eDefault : toSlPreset( presets.quality );
+    auto presetBalanced =
+        forceDefault ? sl::DLSSPreset::eDefault : toSlPreset( presets.balanced );
+    auto presetPerformance =
+        forceDefault ? sl::DLSSPreset::eDefault : toSlPreset( presets.performance );
+    auto presetUltraPerformance =
+        forceDefault ? sl::DLSSPreset::eDefault : toSlPreset( presets.ultraPerformance );
+    auto presetUltraQuality =
+        forceDefault ? sl::DLSSPreset::eDefault : toSlPreset( presets.ultraQuality );
 
     auto opt = sl::DLSSOptions{};
     {
@@ -624,12 +649,12 @@ sl::DLSSOptions MakeDlssOptions( uint32_t targetWidth, uint32_t targetHeight, sl
         opt.exposureScale          = 1.0f;
         opt.colorBuffersHDR        = sl::Boolean::eTrue;
         opt.useAutoExposure        = sl::Boolean::eFalse;
-        opt.dlaaPreset             = preset;
-        opt.qualityPreset          = preset;
-        opt.balancedPreset         = preset;
-        opt.performancePreset      = preset;
-        opt.ultraPerformancePreset = forceDefault ? sl::DLSSPreset::eDefault : sl::DLSSPreset::ePresetF;
-        opt.ultraQualityPreset     = preset;
+        opt.dlaaPreset             = presetDlaa;
+        opt.qualityPreset          = presetQuality;
+        opt.balancedPreset         = presetBalanced;
+        opt.performancePreset      = presetPerformance;
+        opt.ultraPerformancePreset = presetUltraPerformance;
+        opt.ultraQualityPreset     = presetUltraQuality;
     }
     return opt;
 }
@@ -673,7 +698,8 @@ auto RTGL1::DLSS3_DX12::Apply( ID3D12CommandList*            dx12cmd,
                                const Camera&                 camera,
                                uint32_t                      frameId,
                                bool                          skipGeneratedFrame,
-                               uint32_t                      numFramesToGenerate )
+                               uint32_t                      numFramesToGenerate,
+                               const DlssPresetOverrides&    dlssPresets )
     -> std::optional< FramebufferImageIndex >
 {
     sl::Result slr{};
@@ -751,7 +777,8 @@ auto RTGL1::DLSS3_DX12::Apply( ID3D12CommandList*            dx12cmd,
         sl::DLSSOptions dlssOptions =
             MakeDlssOptions( targetSize.width,
                              targetSize.height,
-                             ToSlPerfQuality( renderResolution.GetResolutionMode() ) );
+                             ToSlPerfQuality( renderResolution.GetResolutionMode() ),
+                             dlssPresets );
 
         if( SL_FAILED( slr, pfn.slDLSSSetOptions( sl::ViewportHandle{ 0 }, dlssOptions ) ) )
         {
@@ -938,7 +965,8 @@ auto RTGL1::DLSS3_DX12::Apply( ID3D12CommandList*            dx12cmd,
 
 auto RTGL1::DLSS3_DX12::GetOptimalSettings( uint32_t               userWidth,
                                             uint32_t               userHeight,
-                                            RgRenderResolutionMode mode ) const
+                                            RgRenderResolutionMode mode,
+                                            const DlssPresetOverrides& dlssPresets ) const
     -> std::pair< uint32_t, uint32_t >
 {
     sl::Result slr{};
@@ -949,7 +977,8 @@ auto RTGL1::DLSS3_DX12::GetOptimalSettings( uint32_t               userWidth,
         return { userWidth, userHeight };
     }
 
-    sl::DLSSOptions input = MakeDlssOptions( userWidth, userHeight, ToSlPerfQuality( mode ) );
+    sl::DLSSOptions input =
+        MakeDlssOptions( userWidth, userHeight, ToSlPerfQuality( mode ), dlssPresets );
 
     auto optimal = sl::DLSSOptimalSettings{};
     if( SL_FAILED( slr, pfn.slDLSSGetOptimalSettings( input, optimal ) ) )

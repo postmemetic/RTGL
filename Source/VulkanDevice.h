@@ -259,6 +259,7 @@ private:
     FramebufferImageIndex       m_prevAccum{ FB_IMAGE_INDEX_UPSCALED_PONG };
     bool                        m_skipGeneratedFrame{ false };
     uint32_t                    m_frameGenerationFrames{ 1 };
+    DlssPresetOverrides         m_dlssPresets{};
 
     RgFloat3D fluidGravity{ 0, -9.8f, 0 };
     RgFloat3D fluidColor{ 1, 1, 1 };

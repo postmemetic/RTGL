@@ -97,6 +97,12 @@ VkCommandBuffer RTGL1::VulkanDevice::BeginFrame( const RgStartFrameInfo& info )
         ( resolution.frameGeneration == RG_FRAME_GENERATION_MODE_WITHOUT_GENERATED );
     m_frameGenerationFrames = resolution.frameGenerationFrames > 0 ? resolution.frameGenerationFrames
                                                                    : 1;
+    m_dlssPresets.dlaa             = resolution.dlssPresetDlaa;
+    m_dlssPresets.quality          = resolution.dlssPresetQuality;
+    m_dlssPresets.balanced         = resolution.dlssPresetBalanced;
+    m_dlssPresets.performance      = resolution.dlssPresetPerformance;
+    m_dlssPresets.ultraPerformance = resolution.dlssPresetUltraPerformance;
+    m_dlssPresets.ultraQuality     = resolution.dlssPresetUltraQuality;
 
 
     VkSemaphore semaphoreToWaitOnSubmit = VK_NULL_HANDLE;
@@ -869,7 +875,8 @@ auto RTGL1::VulkanDevice::Render( VkCommandBuffer& cmd, const RgDrawFrameInfo& d
                                                  cameraInfo,
                                                  frameId,
                                                  m_skipGeneratedFrame,
-                                                 m_frameGenerationFrames ) )
+                                                 m_frameGenerationFrames,
+                                                 m_dlssPresets ) )
                 {
                     accum = *u;
                     needHudOnly = false; // providing FB_IMAGE_INDEX_HUD_ONLY to DLSS3 doesn't work

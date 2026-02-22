@@ -154,8 +154,17 @@ public:
             {
                 if( dlss3dx12 )
                 {
+                    DlssPresetOverrides dlssPresets = {
+                        .dlaa             = params.dlssPresetDlaa,
+                        .quality          = params.dlssPresetQuality,
+                        .balanced         = params.dlssPresetBalanced,
+                        .performance      = params.dlssPresetPerformance,
+                        .ultraPerformance = params.dlssPresetUltraPerformance,
+                        .ultraQuality     = params.dlssPresetUltraQuality,
+                    };
                     std::tie( renderWidth, renderHeight ) =
-                        dlss3dx12->GetOptimalSettings( windowWidth, windowHeight, resolutionMode );
+                        dlss3dx12->GetOptimalSettings(
+                            windowWidth, windowHeight, resolutionMode, dlssPresets );
                 }
                 else if( dlss2 )
                 {

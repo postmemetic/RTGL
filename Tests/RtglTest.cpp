@@ -68,6 +68,12 @@ RgBool32  ctl_MoveBoxes       = 0;
 uint32_t  ctl_UpscaleMode     = 2; // 0=FSR2, 1=DLSS2, 2=DLSS3(no generated), 3=DLSS3+FG
 uint32_t  ctl_RenderResolutionMode = 3; // 0 = Ultra perf, 1 = Perf, 2 = Balanced, 3 = Quality, 4 = Native AA
 uint32_t  ctl_FrameGenerationVariant = 0; // 0 = 2x, 1 = 3x
+uint32_t  ctl_DlssPresetDlaa = 0;             // 0=Default, 1=F, 2=J, 3=K
+uint32_t  ctl_DlssPresetQuality = 0;          // 0=Default, 1=F, 2=J, 3=K
+uint32_t  ctl_DlssPresetBalanced = 0;         // 0=Default, 1=F, 2=J, 3=K
+uint32_t  ctl_DlssPresetPerformance = 0;      // 0=Default, 1=F, 2=J, 3=K
+uint32_t  ctl_DlssPresetUltraPerformance = 0; // 0=Default, 1=F, 2=J, 3=K
+uint32_t  ctl_DlssPresetUltraQuality = 0;     // 0=Default, 1=F, 2=J, 3=K
 
 uint32_t GetFrameGenerationFrames()
 {
@@ -77,6 +83,68 @@ uint32_t GetFrameGenerationFrames()
 const char* GetFrameGenerationVariantName()
 {
     return ctl_FrameGenerationVariant == 0 ? "2x" : "3x";
+}
+
+RgNvidiaDlssPreset ToDlssPresetEnum( uint32_t ctl )
+{
+    switch( ctl )
+    {
+        case 0: return RG_NVIDIA_DLSS_PRESET_DEFAULT;
+        case 1: return RG_NVIDIA_DLSS_PRESET_F;
+        case 2: return RG_NVIDIA_DLSS_PRESET_J;
+        case 3: return RG_NVIDIA_DLSS_PRESET_K;
+        default: return RG_NVIDIA_DLSS_PRESET_DEFAULT;
+    }
+}
+
+const char* DlssPresetShortName( uint32_t ctl )
+{
+    switch( ToDlssPresetEnum( ctl ) )
+    {
+        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "Default";
+        case RG_NVIDIA_DLSS_PRESET_F: return "F";
+        case RG_NVIDIA_DLSS_PRESET_J: return "J";
+        case RG_NVIDIA_DLSS_PRESET_K: return "K";
+        default: return "Unknown";
+    }
+}
+
+const char* DlssPresetModelLabel( uint32_t ctl )
+{
+    switch( ToDlssPresetEnum( ctl ) )
+    {
+        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "Default";
+        case RG_NVIDIA_DLSS_PRESET_F: return "CNN";
+        case RG_NVIDIA_DLSS_PRESET_J: return "Transformer";
+        case RG_NVIDIA_DLSS_PRESET_K: return "Transformer";
+        default: return "Unknown";
+    }
+}
+
+uint32_t& GetActiveDlssPresetControl()
+{
+    switch( ctl_RenderResolutionMode )
+    {
+        case 0: return ctl_DlssPresetUltraPerformance;
+        case 1: return ctl_DlssPresetPerformance;
+        case 2: return ctl_DlssPresetBalanced;
+        case 3: return ctl_DlssPresetQuality;
+        case 4: return ctl_DlssPresetDlaa;
+        default: return ctl_DlssPresetQuality;
+    }
+}
+
+const char* GetActiveDlssPresetModeName()
+{
+    switch( ctl_RenderResolutionMode )
+    {
+        case 0: return "Ultra Performance";
+        case 1: return "Performance";
+        case 2: return "Balanced";
+        case 3: return "Quality";
+        case 4: return "Native AA";
+        default: return "Unknown";
+    }
 }
 
 std::string GetUpscaleModeName()
@@ -96,13 +164,19 @@ std::string GetUpscaleModeName()
     switch( ctl_UpscaleMode )
     {
         case 0: return std::string( "FSR2 " ) + renderResolutionMode;
-        case 1: return std::string( "DLSS2  ") + renderResolutionMode;
+        case 1: return std::string( "DLSS2  " ) + renderResolutionMode;
         case 2:
             return std::string( "DLSS3 (no FG, variant " ) + GetFrameGenerationVariantName() +
-                   ") " + renderResolutionMode;
+                   ") " + renderResolutionMode + " [Preset " +
+                   DlssPresetShortName( GetActiveDlssPresetControl() ) + "/" +
+                   DlssPresetModelLabel( GetActiveDlssPresetControl() ) + "@" +
+                   GetActiveDlssPresetModeName() + "]";
         case 3:
             return std::string( "DLSS3 + FG (" ) + GetFrameGenerationVariantName() + ") " +
-                   renderResolutionMode;
+                   renderResolutionMode + " [Preset " +
+                   DlssPresetShortName( GetActiveDlssPresetControl() ) + "/" +
+                   DlssPresetModelLabel( GetActiveDlssPresetControl() ) + "@" +
+                   GetActiveDlssPresetModeName() + "]";
         default: return std::string( "Unknown Upscaler " ) + renderResolutionMode;
     }
 }
@@ -112,20 +186,38 @@ void UpdateWindowTitleWithUpscaleMode()
     static int lastMode = -1;
     static int lastQualityMode = -1;
     static int lastFgVariant = -1;
+    static int lastPresetDlaa = -1;
+    static int lastPresetQuality = -1;
+    static int lastPresetBalanced = -1;
+    static int lastPresetPerformance = -1;
+    static int lastPresetUltraPerformance = -1;
+    static int lastPresetUltraQuality = -1;
     if( !g_GlfwHandle || ( lastMode == int( ctl_UpscaleMode ) &&
                            lastQualityMode == int( ctl_RenderResolutionMode ) &&
-                           lastFgVariant == int( ctl_FrameGenerationVariant ) ) )
+                           lastFgVariant == int( ctl_FrameGenerationVariant ) &&
+                           lastPresetDlaa == int( ctl_DlssPresetDlaa ) &&
+                           lastPresetQuality == int( ctl_DlssPresetQuality ) &&
+                           lastPresetBalanced == int( ctl_DlssPresetBalanced ) &&
+                           lastPresetPerformance == int( ctl_DlssPresetPerformance ) &&
+                           lastPresetUltraPerformance == int( ctl_DlssPresetUltraPerformance ) &&
+                           lastPresetUltraQuality == int( ctl_DlssPresetUltraQuality ) ) )
     {
         return;
     }
 
     std::string title = std::string{ "RTGL1 Test | Upscaler: " } + GetUpscaleModeName() +
-                        " (press U/T/G to cycle)";
+                        " (press U/T/G/H to cycle)";
     glfwSetWindowTitle( g_GlfwHandle, title.c_str() );
     std::cout << "[RtglExample] " << title << std::endl;
     lastMode = int( ctl_UpscaleMode );
     lastQualityMode = int( ctl_RenderResolutionMode );
     lastFgVariant = int( ctl_FrameGenerationVariant );
+    lastPresetDlaa = int( ctl_DlssPresetDlaa );
+    lastPresetQuality = int( ctl_DlssPresetQuality );
+    lastPresetBalanced = int( ctl_DlssPresetBalanced );
+    lastPresetPerformance = int( ctl_DlssPresetPerformance );
+    lastPresetUltraPerformance = int( ctl_DlssPresetUltraPerformance );
+    lastPresetUltraQuality = int( ctl_DlssPresetUltraQuality );
 }
 
 const char* ToString( RgRenderUpscaleTechnique v )
@@ -165,12 +257,30 @@ const char* ToString( RgRenderResolutionMode v )
     }
 }
 
+const char* ToString( RgNvidiaDlssPreset v )
+{
+    switch( v )
+    {
+        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "DEFAULT";
+        case RG_NVIDIA_DLSS_PRESET_F: return "F";
+        case RG_NVIDIA_DLSS_PRESET_J: return "J";
+        case RG_NVIDIA_DLSS_PRESET_K: return "K";
+        default: return "UNKNOWN";
+    }
+}
+
 struct RequestedRenderState
 {
     RgRenderUpscaleTechnique upscaleTechnique;
     RgFrameGenerationMode    frameGeneration;
     RgRenderResolutionMode   resolutionMode;
     uint32_t                 frameGenerationFrames;
+    RgNvidiaDlssPreset       dlssPresetDlaa;
+    RgNvidiaDlssPreset       dlssPresetQuality;
+    RgNvidiaDlssPreset       dlssPresetBalanced;
+    RgNvidiaDlssPreset       dlssPresetPerformance;
+    RgNvidiaDlssPreset       dlssPresetUltraPerformance;
+    RgNvidiaDlssPreset       dlssPresetUltraQuality;
 };
 
 bool operator==( const RequestedRenderState& a, const RequestedRenderState& b )
@@ -178,7 +288,13 @@ bool operator==( const RequestedRenderState& a, const RequestedRenderState& b )
     return a.upscaleTechnique == b.upscaleTechnique &&
            a.frameGeneration == b.frameGeneration &&
            a.resolutionMode == b.resolutionMode &&
-           a.frameGenerationFrames == b.frameGenerationFrames;
+           a.frameGenerationFrames == b.frameGenerationFrames &&
+           a.dlssPresetDlaa == b.dlssPresetDlaa &&
+           a.dlssPresetQuality == b.dlssPresetQuality &&
+           a.dlssPresetBalanced == b.dlssPresetBalanced &&
+           a.dlssPresetPerformance == b.dlssPresetPerformance &&
+           a.dlssPresetUltraPerformance == b.dlssPresetUltraPerformance &&
+           a.dlssPresetUltraQuality == b.dlssPresetUltraQuality;
 }
 
 void LogRenderStateChanges( RgInterface& rt, const RequestedRenderState& requested )
@@ -202,7 +318,15 @@ void LogRenderStateChanges( RgInterface& rt, const RequestedRenderState& request
         std::cout << "[RtglExample] Requested state: upscaler=" << ToString( requested.upscaleTechnique )
                   << ", frameGeneration=" << ToString( requested.frameGeneration )
                   << ", resolutionMode=" << ToString( requested.resolutionMode )
-                  << ", frameGenerationFrames=" << requested.frameGenerationFrames << std::endl;
+                  << ", frameGenerationFrames=" << requested.frameGenerationFrames
+                  << ", dlssPresetDlaa=" << ToString( requested.dlssPresetDlaa )
+                  << ", dlssPresetQuality=" << ToString( requested.dlssPresetQuality )
+                  << ", dlssPresetBalanced=" << ToString( requested.dlssPresetBalanced )
+                  << ", dlssPresetPerformance=" << ToString( requested.dlssPresetPerformance )
+                  << ", dlssPresetUltraPerformance="
+                  << ToString( requested.dlssPresetUltraPerformance )
+                  << ", dlssPresetUltraQuality=" << ToString( requested.dlssPresetUltraQuality )
+                  << std::endl;
     }
 
     if( stateChanged || availabilityChange || reasonChanged )
@@ -336,6 +460,7 @@ void ProcessInput()
     ControlSwitch( GLFW_KEY_U,          ctl_UpscaleMode, 4 );
     ControlSwitch( GLFW_KEY_T,          ctl_RenderResolutionMode, 5 );
     ControlSwitch( GLFW_KEY_G,          ctl_FrameGenerationVariant, 2 );
+    ControlSwitch( GLFW_KEY_H,          GetActiveDlssPresetControl(), 4 );
     
 }
 
@@ -728,6 +853,13 @@ void MainLoop( RgInterface& rt, std::string_view gltfPath )
         {
             RequestedRenderState requested = {};
             requested.frameGenerationFrames = GetFrameGenerationFrames();
+            requested.dlssPresetDlaa             = ToDlssPresetEnum( ctl_DlssPresetDlaa );
+            requested.dlssPresetQuality          = ToDlssPresetEnum( ctl_DlssPresetQuality );
+            requested.dlssPresetBalanced         = ToDlssPresetEnum( ctl_DlssPresetBalanced );
+            requested.dlssPresetPerformance      = ToDlssPresetEnum( ctl_DlssPresetPerformance );
+            requested.dlssPresetUltraPerformance =
+                ToDlssPresetEnum( ctl_DlssPresetUltraPerformance );
+            requested.dlssPresetUltraQuality = ToDlssPresetEnum( ctl_DlssPresetUltraQuality );
 
             switch( ctl_UpscaleMode )
             {
@@ -779,6 +911,12 @@ void MainLoop( RgInterface& rt, std::string_view gltfPath )
                 .resolutionMode   = requested.resolutionMode,
                 .frameGeneration  = requested.frameGeneration,
                 .frameGenerationFrames = requested.frameGenerationFrames,
+                .dlssPresetDlaa = requested.dlssPresetDlaa,
+                .dlssPresetQuality = requested.dlssPresetQuality,
+                .dlssPresetBalanced = requested.dlssPresetBalanced,
+                .dlssPresetPerformance = requested.dlssPresetPerformance,
+                .dlssPresetUltraPerformance = requested.dlssPresetUltraPerformance,
+                .dlssPresetUltraQuality = requested.dlssPresetUltraQuality,
             };
 
             auto startInfo = RgStartFrameInfo{
