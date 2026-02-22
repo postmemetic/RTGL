@@ -42,6 +42,7 @@
 #include <queue>
 #include <span>
 #include <type_traits>
+#include <ranges>
 
 namespace
 {
