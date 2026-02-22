@@ -140,7 +140,7 @@ Upscaling / frame generation / denoising:
 - `U`: cycle upscaler mode (`FSR2`, `DLSS2`, `DLSS3 (no FG)`, `DLSS3 + FG`)
 - `T`: cycle render resolution mode (`Ultra Performance`, `Performance`, `Balanced`, `Quality`, `Native AA`)
 - `G`: cycle frame generation variant (`2x` / `3x`)
-- `H`: cycle DLSS preset for the active render resolution mode (`Auto`, `F`, `J`, `K`)
+- `H`: cycle DLSS preset for the active render resolution mode (`Auto`, `F`, `J`, `K`, `L`, `M`)
 - `J`: toggle denoiser (`ON` / `OFF`)
 
 Other:

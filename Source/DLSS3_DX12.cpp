@@ -619,6 +619,8 @@ sl::DLSSOptions MakeDlssOptions( uint32_t                         targetWidth,
             case RG_NVIDIA_DLSS_PRESET_F: return sl::DLSSPreset::ePresetF;
             case RG_NVIDIA_DLSS_PRESET_J: return sl::DLSSPreset::ePresetJ;
             case RG_NVIDIA_DLSS_PRESET_K: return sl::DLSSPreset::ePresetK;
+            case RG_NVIDIA_DLSS_PRESET_L: return sl::DLSSPreset::ePresetL;
+            case RG_NVIDIA_DLSS_PRESET_M: return sl::DLSSPreset::ePresetM;
             default: return sl::DLSSPreset::eDefault;
         }
     };

@@ -795,12 +795,15 @@ typedef enum RgRenderResolutionMode
 // - J is generally an older/legacy path.
 // - K is transformer-based and usually recommended for quality.
 // - F is the default for Ultra Performance mode.
+// - L/M are exposed for experimentation; current DLSS runtime may resolve them to default.
 typedef enum RgNvidiaDlssPreset
 {
     RG_NVIDIA_DLSS_PRESET_DEFAULT,
     RG_NVIDIA_DLSS_PRESET_F,
     RG_NVIDIA_DLSS_PRESET_J,
     RG_NVIDIA_DLSS_PRESET_K,
+    RG_NVIDIA_DLSS_PRESET_L,
+    RG_NVIDIA_DLSS_PRESET_M,
 } RgNvidiaDlssPreset;
 
 // Can be linked after RgStartFrameInfo.

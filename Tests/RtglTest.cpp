@@ -68,12 +68,12 @@ RgBool32  ctl_MoveBoxes       = 0;
 uint32_t  ctl_UpscaleMode     = 2; // 0=FSR2, 1=DLSS2, 2=DLSS3(no generated), 3=DLSS3+FG
 uint32_t  ctl_RenderResolutionMode = 3; // 0 = Ultra perf, 1 = Perf, 2 = Balanced, 3 = Quality, 4 = Native AA
 uint32_t  ctl_FrameGenerationVariant = 0; // 0 = 2x, 1 = 3x
-uint32_t  ctl_DlssPresetDlaa = 0;             // 0=Default, 1=F, 2=J, 3=K
-uint32_t  ctl_DlssPresetQuality = 0;          // 0=Default, 1=F, 2=J, 3=K
-uint32_t  ctl_DlssPresetBalanced = 0;         // 0=Default, 1=F, 2=J, 3=K
-uint32_t  ctl_DlssPresetPerformance = 0;      // 0=Default, 1=F, 2=J, 3=K
-uint32_t  ctl_DlssPresetUltraPerformance = 0; // 0=Default, 1=F, 2=J, 3=K
-uint32_t  ctl_DlssPresetUltraQuality = 0;     // 0=Default, 1=F, 2=J, 3=K
+uint32_t  ctl_DlssPresetDlaa = 0;             // 0=Auto, 1=F, 2=J, 3=K, 4=L, 5=M
+uint32_t  ctl_DlssPresetQuality = 0;          // 0=Auto, 1=F, 2=J, 3=K, 4=L, 5=M
+uint32_t  ctl_DlssPresetBalanced = 0;         // 0=Auto, 1=F, 2=J, 3=K, 4=L, 5=M
+uint32_t  ctl_DlssPresetPerformance = 0;      // 0=Auto, 1=F, 2=J, 3=K, 4=L, 5=M
+uint32_t  ctl_DlssPresetUltraPerformance = 0; // 0=Auto, 1=F, 2=J, 3=K, 4=L, 5=M
+uint32_t  ctl_DlssPresetUltraQuality = 0;     // 0=Auto, 1=F, 2=J, 3=K, 4=L, 5=M
 RgBool32  ctl_DenoiserEnable = 1;
 
 uint32_t GetFrameGenerationFrames()
@@ -94,6 +94,8 @@ RgNvidiaDlssPreset ToDlssPresetEnum( uint32_t ctl )
         case 1: return RG_NVIDIA_DLSS_PRESET_F;
         case 2: return RG_NVIDIA_DLSS_PRESET_J;
         case 3: return RG_NVIDIA_DLSS_PRESET_K;
+        case 4: return RG_NVIDIA_DLSS_PRESET_L;
+        case 5: return RG_NVIDIA_DLSS_PRESET_M;
         default: return RG_NVIDIA_DLSS_PRESET_DEFAULT;
     }
 }
@@ -106,6 +108,8 @@ const char* DlssPresetShortName( uint32_t ctl )
         case RG_NVIDIA_DLSS_PRESET_F: return "F";
         case RG_NVIDIA_DLSS_PRESET_J: return "J";
         case RG_NVIDIA_DLSS_PRESET_K: return "K";
+        case RG_NVIDIA_DLSS_PRESET_L: return "L";
+        case RG_NVIDIA_DLSS_PRESET_M: return "M";
         default: return "Unknown";
     }
 }
@@ -118,6 +122,8 @@ const char* DlssPresetModelLabel( uint32_t ctl )
         case RG_NVIDIA_DLSS_PRESET_F: return "CNN";
         case RG_NVIDIA_DLSS_PRESET_J: return "Transformer";
         case RG_NVIDIA_DLSS_PRESET_K: return "Transformer";
+        case RG_NVIDIA_DLSS_PRESET_L: return "Transformer?";
+        case RG_NVIDIA_DLSS_PRESET_M: return "Transformer?";
         default: return "Unknown";
     }
 }
@@ -270,6 +276,8 @@ const char* ToString( RgNvidiaDlssPreset v )
         case RG_NVIDIA_DLSS_PRESET_F: return "F";
         case RG_NVIDIA_DLSS_PRESET_J: return "J";
         case RG_NVIDIA_DLSS_PRESET_K: return "K";
+        case RG_NVIDIA_DLSS_PRESET_L: return "L";
+        case RG_NVIDIA_DLSS_PRESET_M: return "M";
         default: return "UNKNOWN";
     }
 }
@@ -468,7 +476,7 @@ void ProcessInput()
     ControlSwitch( GLFW_KEY_U,          ctl_UpscaleMode, 4 );
     ControlSwitch( GLFW_KEY_T,          ctl_RenderResolutionMode, 5 );
     ControlSwitch( GLFW_KEY_G,          ctl_FrameGenerationVariant, 2 );
-    ControlSwitch( GLFW_KEY_H,          GetActiveDlssPresetControl(), 4 );
+    ControlSwitch( GLFW_KEY_H,          GetActiveDlssPresetControl(), 6 );
     ControlSwitch( GLFW_KEY_J,          ctl_DenoiserEnable );
     
 }
