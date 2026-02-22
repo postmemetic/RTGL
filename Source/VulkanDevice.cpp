@@ -2191,7 +2191,16 @@ bool RTGL1::VulkanDevice::IsUpscaleTechniqueAvailable( RgRenderUpscaleTechnique 
                 }
                 return !error;
             }
-            return bool( nvDlss2 );
+            if( !nvDlss2 )
+            {
+                if( ppFailureReason )
+                {
+                    *ppFailureReason =
+                        "Native DLSS2 path is unavailable in this build (RG_USE_NATIVE_DLSS2 is not enabled)";
+                }
+                return false;
+            }
+            return true;
         }
 
         default: {

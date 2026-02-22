@@ -206,14 +206,15 @@ auto FeatureName( sl::Feature f ) -> const char*
     switch( f )
     {
         case sl::kFeatureDLSS: return "DLSS Super Resolution";
-        case sl::kFeatureNRD: return "NRD";
         case sl::kFeatureReflex: return "Reflex";
         case sl::kFeatureDLSS_G: return "DLSS Frame Generation";
         default: return "<no name>";
     }
 }
 
-auto FetchFeatureFunctions( const sl::AdapterInfo& adapter, sl::Feature slFeature ) -> bool
+auto CheckFeatureSupportAndMaybeFetchFunctions( const sl::AdapterInfo& adapter,
+                                                sl::Feature           slFeature,
+                                                bool                  fetchFunctions ) -> bool
 {
     if( !pfn.slGetFeatureFunction )
     {
@@ -320,39 +321,42 @@ auto FetchFeatureFunctions( const sl::AdapterInfo& adapter, sl::Feature slFeatur
         return false;
     };
 
-    switch( slFeature )
+    if( fetchFunctions )
     {
-        case sl::kFeatureDLSS:
-            // clang-format off
-            if( !fetchFeatureInto( &pfn.slDLSSGetOptimalSettings , "slDLSSGetOptimalSettings" ) ) { return false; }
-            if( !fetchFeatureInto( &pfn.slDLSSGetState           , "slDLSSGetState"           ) ) { return false; }
-            if( !fetchFeatureInto( &pfn.slDLSSSetOptions         , "slDLSSSetOptions"         ) ) { return false; }
-            // clang-format on
-            break;
+        switch( slFeature )
+        {
+            case sl::kFeatureDLSS:
+                // clang-format off
+                if( !fetchFeatureInto( &pfn.slDLSSGetOptimalSettings , "slDLSSGetOptimalSettings" ) ) { return false; }
+                if( !fetchFeatureInto( &pfn.slDLSSGetState           , "slDLSSGetState"           ) ) { return false; }
+                if( !fetchFeatureInto( &pfn.slDLSSSetOptions         , "slDLSSSetOptions"         ) ) { return false; }
+                // clang-format on
+                break;
 
-        case sl::kFeaturePCL:
-            // clang-format off
-            if( !fetchFeatureInto( &pfn.slPCLGetState      , "slPCLGetState"   ) ) { return false; }
-            if( !fetchFeatureInto( &pfn.slPCLSetMarker     , "slPCLSetMarker"  ) ) { return false; }
-            // clang-format on
-            break;
+            case sl::kFeaturePCL:
+                // clang-format off
+                if( !fetchFeatureInto( &pfn.slPCLGetState      , "slPCLGetState"   ) ) { return false; }
+                if( !fetchFeatureInto( &pfn.slPCLSetMarker     , "slPCLSetMarker"  ) ) { return false; }
+                // clang-format on
+                break;
 
-        case sl::kFeatureReflex:
-            // clang-format off
-            if( !fetchFeatureInto( &pfn.slReflexGetState   , "slReflexGetState"   ) ) { return false; }
-            if( !fetchFeatureInto( &pfn.slReflexSleep      , "slReflexSleep"      ) ) { return false; }
-            if( !fetchFeatureInto( &pfn.slReflexSetOptions , "slReflexSetOptions" ) ) { return false; }
-            // clang-format on
-            break;
+            case sl::kFeatureReflex:
+                // clang-format off
+                if( !fetchFeatureInto( &pfn.slReflexGetState   , "slReflexGetState"   ) ) { return false; }
+                if( !fetchFeatureInto( &pfn.slReflexSleep      , "slReflexSleep"      ) ) { return false; }
+                if( !fetchFeatureInto( &pfn.slReflexSetOptions , "slReflexSetOptions" ) ) { return false; }
+                // clang-format on
+                break;
 
-        case sl::kFeatureDLSS_G:
-            // clang-format off
-            if( !fetchFeatureInto( &pfn.slDLSSGGetState    , "slDLSSGGetState"    ) ) { return false; }
-            if( !fetchFeatureInto( &pfn.slDLSSGSetOptions  , "slDLSSGSetOptions"  ) ) { return false; }
-            // clang-format on
-            break;
+            case sl::kFeatureDLSS_G:
+                // clang-format off
+                if( !fetchFeatureInto( &pfn.slDLSSGGetState    , "slDLSSGGetState"    ) ) { return false; }
+                if( !fetchFeatureInto( &pfn.slDLSSGSetOptions  , "slDLSSGSetOptions"  ) ) { return false; }
+                // clang-format on
+                break;
 
-        default: assert( 0 ); return false;
+            default: assert( 0 ); return false;
+        }
     }
 
     return true;
@@ -429,6 +433,8 @@ auto RTGL1::DLSS3_DX12::MakeInstance( uint64_t gpuLuid, bool justCheckCompatibil
         pref.engineVersion     = RG_RTGL_VERSION_API;
         pref.projectId         = pAppGuid;
         pref.renderAPI         = sl::RenderAPI::eD3D12;
+        debug::Info( "[DLSS3] Streamline init identity: applicationId=<unset>, projectId={}",
+                     pAppGuid ? pAppGuid : "<null>" );
     }
 
     if( SL_FAILED( slr, pfn.slInit( pref, sl::kSDKVersion ) ) )
@@ -457,7 +463,7 @@ auto RTGL1::DLSS3_DX12::MakeInstance( uint64_t gpuLuid, bool justCheckCompatibil
 
     for( auto f : features )
     {
-        if( !FetchFeatureFunctions( adapter, f ) )
+        if( !CheckFeatureSupportAndMaybeFetchFunctions( adapter, f, false ) )
         {
             debug::Warning( "[NVIDIA Streamline] Failed to fetch {} functions", FeatureName( f ) );
             pfn.slShutdown();
@@ -494,6 +500,25 @@ auto RTGL1::DLSS3_DX12::MakeInstance( uint64_t gpuLuid, bool justCheckCompatibil
         pfn.slShutdown();
         pfn = {};
         return std::unexpected{ "DirectX 12 initialization failed for DLSS3" };
+    }
+
+    // With Streamline 2.10.3, feature function pointers must be fetched only
+    // after a valid D3D device has been set via slSetD3DDevice.
+    for( auto f : features )
+    {
+        if( !CheckFeatureSupportAndMaybeFetchFunctions( adapter, f, true ) )
+        {
+            debug::Warning( "[NVIDIA Streamline] Failed to fetch {} functions after device init",
+                            FeatureName( f ) );
+            dxgi::Destroy();
+            pfn.slShutdown();
+            pfn = {};
+            return std::unexpected{ f == sl::kFeatureDLSS     ? "NVIDIA DLSS is not supported"
+                                    : f == sl::kFeatureReflex ? "NVIDIA Reflex is not supported"
+                                    : f == sl::kFeatureDLSS_G
+                                        ? "NVIDIA Frame Generation is not supported"
+                                        : "NVIDIA <feature_id> is not supported" };
+        }
     }
 
     auto reflexConst = sl::ReflexOptions{};
@@ -584,8 +609,11 @@ sl::Resource ToSlResource( const RTGL1::Framebuffers&   framebuffers,
 
 sl::DLSSOptions MakeDlssOptions( uint32_t targetWidth, uint32_t targetHeight, sl::DLSSMode mode )
 {
-    sl::DLSSPreset preset = RTGL1::LibConfig().dlssForceDefaultPreset ? sl::DLSSPreset::eDefault
-                                                                      : sl::DLSSPreset::ePresetE;
+    // Presets A-E are removed in newer Streamline/DLSS SDKs.
+    // Use K for DLAA/Quality/Balanced/Performance and F for Ultra Performance.
+    const bool forceDefault = RTGL1::LibConfig().dlssForceDefaultPreset;
+    sl::DLSSPreset preset   = forceDefault ? sl::DLSSPreset::eDefault : sl::DLSSPreset::ePresetK;
+
     auto opt = sl::DLSSOptions{};
     {
         opt.mode                   = mode;
@@ -600,7 +628,7 @@ sl::DLSSOptions MakeDlssOptions( uint32_t targetWidth, uint32_t targetHeight, sl
         opt.qualityPreset          = preset;
         opt.balancedPreset         = preset;
         opt.performancePreset      = preset;
-        opt.ultraPerformancePreset = preset;
+        opt.ultraPerformancePreset = forceDefault ? sl::DLSSPreset::eDefault : sl::DLSSPreset::ePresetF;
         opt.ultraQualityPreset     = preset;
     }
     return opt;
@@ -744,6 +772,16 @@ auto RTGL1::DLSS3_DX12::Apply( ID3D12CommandList*            dx12cmd,
         {
             debug::Error( "slDLSSGSetOptions fail. Error code: {}", uint32_t( slr ) );
             return {};
+        }
+
+        sl::DLSSGState dlssgState{};
+        if( SL_FAILED( slr, pfn.slDLSSGGetState( sl::ViewportHandle{ 0 }, dlssgState, nullptr ) ) )
+        {
+            debug::Warning( "slDLSSGGetState fail. Error code: {}", uint32_t( slr ) );
+        }
+        else if( dlssgState.status != sl::DLSSGStatus::eOk )
+        {
+            debug::Warning( "DLSS-G runtime status is not OK: {}", uint32_t( dlssgState.status ) );
         }
     }
 

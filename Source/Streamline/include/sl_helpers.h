@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2022-2023 NVIDIA CORPORATION. All rights reserved
+* Copyright (c) 2022-2025 NVIDIA CORPORATION. All rights reserved
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 #pragma once
 
 #include <string.h>
+#include <vector>
 
 #define FEATURE_SPECIFIC_BUFFER_TYPE_ID(feature, number) feature << 16 | number
 
@@ -32,7 +33,28 @@
 #include "sl_pcl.h"
 #include "sl_dlss.h"
 #include "sl_nis.h"
-#include "sl_nrd.h"
+#include "sl_dlss_d.h"
+#include "sl_dlss_g.h"
+
+#if defined(__clang__)
+    #define SL_DISABLE_DEPRECATED_WARNINGS \
+        _Pragma("clang diagnostic push") \
+        _Pragma("clang diagnostic ignored \"-Wdeprecated-declarations\"")
+    #define SL_RESTORE_DEPRECATED_WARNINGS \
+        _Pragma("clang diagnostic pop")
+
+#elif defined(_MSC_VER)
+    #define SL_DISABLE_DEPRECATED_WARNINGS \
+        __pragma(warning(push)) \
+        __pragma(warning(disable: 4996))
+    #define SL_RESTORE_DEPRECATED_WARNINGS \
+        __pragma(warning(pop))
+
+#else
+    #define SL_DISABLE_DEPRECATED_WARNINGS
+    #define SL_RESTORE_DEPRECATED_WARNINGS
+#endif
+
 
 namespace sl
 {
@@ -48,6 +70,13 @@ inline float4x4 transpose(const float4x4& m)
 };
 
 #define SL_CASE_STR(a) case a : return #a;
+
+// Check for c++17 features
+#if __cplusplus >= 201703L
+    #define SL_FALLTHROUGH [[fallthrough]];
+#else
+    #define SL_FALLTHROUGH
+#endif
 
 inline const char* getResultAsStr(Result v)
 {
@@ -97,27 +126,6 @@ inline const char* getResultAsStr(Result v)
     return "Unknown";
 }
 
-inline const char* getNRDMethodAsStr(NRDMethods v)
-{
-    switch (v)
-    {
-        SL_CASE_STR(NRDMethods::eOff);
-        SL_CASE_STR(NRDMethods::eReblurDiffuse);
-        SL_CASE_STR(NRDMethods::eReblurDiffuseOcclusion);
-        SL_CASE_STR(NRDMethods::eReblurSpecular);
-        SL_CASE_STR(NRDMethods::eReblurSpecularOcclusion);
-        SL_CASE_STR(NRDMethods::eReblurDiffuseSpecular);
-        SL_CASE_STR(NRDMethods::eReblurDiffuseSpecularOcclusion);
-        SL_CASE_STR(NRDMethods::eReblurDiffuseDirectionalOcclusion);
-        SL_CASE_STR(NRDMethods::eSigmaShadow);
-        SL_CASE_STR(NRDMethods::eSigmaShadowTranslucency);
-        SL_CASE_STR(NRDMethods::eRelaxDiffuse);
-        SL_CASE_STR(NRDMethods::eRelaxSpecular);
-        SL_CASE_STR(NRDMethods::eRelaxDiffuseSpecular);
-    };
-    return "Unknown";
-}
-
 inline const char* getNISModeAsStr(NISMode v)
 {
     switch (v)
@@ -125,6 +133,7 @@ inline const char* getNISModeAsStr(NISMode v)
         SL_CASE_STR(NISMode::eOff);
         SL_CASE_STR(NISMode::eScaler);
         SL_CASE_STR(NISMode::eSharpen);
+        case NISMode::eCount: break;
     };
     return "Unknown";
 }
@@ -136,6 +145,7 @@ inline const char* getNISHDRAsStr(NISHDR v)
         SL_CASE_STR(NISHDR::eNone);
         SL_CASE_STR(NISHDR::eLinear);
         SL_CASE_STR(NISHDR::ePQ);
+        case NISHDR::eCount: break;
     };
     return "Unknown";
 }
@@ -147,6 +157,7 @@ inline const char* getReflexModeAsStr(ReflexMode mode)
         SL_CASE_STR(ReflexMode::eOff);
         SL_CASE_STR(ReflexMode::eLowLatency);
         SL_CASE_STR(ReflexMode::eLowLatencyWithBoost);
+        case ReflexMode::ReflexMode_eCount: break;
     };
     return "Unknown";
 }
@@ -167,6 +178,14 @@ inline const char* getPCLMarkerAsStr(PCLMarker marker)
         SL_CASE_STR(PCLMarker::eOutOfBandRenderSubmitEnd);
         SL_CASE_STR(PCLMarker::eOutOfBandPresentStart);
         SL_CASE_STR(PCLMarker::eOutOfBandPresentEnd);
+        SL_CASE_STR(PCLMarker::eControllerInputSample);
+        SL_CASE_STR(PCLMarker::eDeltaTCalculation);
+        SL_CASE_STR(PCLMarker::eLateWarpPresentStart);
+        SL_CASE_STR(PCLMarker::eLateWarpPresentEnd);
+        SL_CASE_STR(PCLMarker::eCameraConstructed);
+        SL_CASE_STR(PCLMarker::eLateWarpRenderSubmitStart);
+        SL_CASE_STR(PCLMarker::eLateWarpRenderSubmitEnd);
+        case PCLMarker::eMaximum: break;
     };
     return "Unknown";
 }
@@ -182,6 +201,19 @@ inline const char* getDLSSModeAsStr(DLSSMode mode)
         SL_CASE_STR(DLSSMode::eMaxQuality);
         SL_CASE_STR(DLSSMode::eUltraPerformance);
         SL_CASE_STR(DLSSMode::eUltraQuality);
+        case DLSSMode::eCount: break;
+    };
+    return "Unknown";
+}
+
+inline const char* getDLSSGModeAsStr(DLSSGMode mode)
+{
+    switch (mode)
+    {
+        SL_CASE_STR(sl::DLSSGMode::eOff);
+        SL_CASE_STR(sl::DLSSGMode::eOn);
+        SL_CASE_STR(sl::DLSSGMode::eAuto);
+        case DLSSGMode::eCount: break;
     };
     return "Unknown";
 }
@@ -240,10 +272,24 @@ inline const char* getBufferTypeAsStr(BufferType buf)
         SL_CASE_STR(kBufferTypeDiffuseRayDirection);
         SL_CASE_STR(kBufferTypeHiResDepth);
         SL_CASE_STR(kBufferTypeLinearDepth);
+        SL_CASE_STR(kBufferTypeColorAfterParticles);
+        SL_CASE_STR(kBufferTypeColorAfterTransparency);
+        SL_CASE_STR(kBufferTypeColorAfterFog);
+        SL_CASE_STR(kBufferTypeScreenSpaceSubsurfaceScatteringGuide);
+        SL_CASE_STR(kBufferTypeColorBeforeScreenSpaceSubsurfaceScattering);
+        SL_CASE_STR(kBufferTypeColorAfterScreenSpaceSubsurfaceScattering);
+        SL_CASE_STR(kBufferTypeScreenSpaceRefractionGuide);
+        SL_CASE_STR(kBufferTypeColorBeforeScreenSpaceRefraction);
+        SL_CASE_STR(kBufferTypeColorAfterScreenSpaceRefraction);
+        SL_CASE_STR(kBufferTypeDepthOfFieldGuide);
+        SL_CASE_STR(kBufferTypeColorBeforeDepthOfField);
+        SL_CASE_STR(kBufferTypeColorAfterDepthOfField);
+        SL_CASE_STR(kBufferTypeScalingOutputAlpha);
         SL_CASE_STR(kBufferTypeBidirectionalDistortionField);
         SL_CASE_STR(kBufferTypeTransparencyLayer);
         SL_CASE_STR(kBufferTypeTransparencyLayerOpacity);
         SL_CASE_STR(kBufferTypeBackbuffer);
+        SL_CASE_STR(kBufferTypeNoWarpMask);
     };
     return "Unknown";
 }
@@ -253,7 +299,6 @@ inline const char* getFeatureAsStr(Feature f)
     switch (f)
     {
         SL_CASE_STR(kFeatureDLSS);
-        SL_CASE_STR(kFeatureNRD);
         SL_CASE_STR(kFeatureNIS);
         SL_CASE_STR(kFeatureReflex);
         SL_CASE_STR(kFeaturePCL);
@@ -263,6 +308,10 @@ inline const char* getFeatureAsStr(Feature f)
         SL_CASE_STR(kFeatureCommon);
         SL_CASE_STR(kFeatureDLSS_RR);
         SL_CASE_STR(kFeatureDeepDVC);
+        SL_CASE_STR(kFeatureDirectSR);
+        SL_CASE_STR(kFeatureLatewarp);
+        // Removed features
+        case kFeatureNRD_INVALID: break;
     }
     return "Unknown";
 }
@@ -274,7 +323,6 @@ inline const char* getFeatureFilenameAsStrNoSL(Feature f)
     switch (f)
     {
         case kFeatureDLSS: return "dlss";
-        case kFeatureNRD:  return "nrd";
         case kFeatureNIS: return "nis";
         case kFeatureReflex: return "reflex";
         case kFeaturePCL: return "pcl";
@@ -284,8 +332,11 @@ inline const char* getFeatureFilenameAsStrNoSL(Feature f)
         case kFeatureImGUI: return "imgui";
         case kFeatureCommon: return "common";
         case kFeatureDLSS_RR: return "dlss_d";
-        default: return "Unknown";
+        case kFeatureDirectSR: return "directsr";
+        case kFeatureLatewarp: return "latewarp";
+        case kFeatureNRD_INVALID: break;
     }
+    return "Unknown";
 }
 
 inline const char* getLogLevelAsStr(LogLevel v)
@@ -295,6 +346,7 @@ inline const char* getLogLevelAsStr(LogLevel v)
         SL_CASE_STR(LogLevel::eOff);
         SL_CASE_STR(LogLevel::eDefault);
         SL_CASE_STR(LogLevel::eVerbose);
+        case LogLevel::eCount: break;
     };
     return "Unknown";
 }
@@ -311,6 +363,8 @@ inline const char* getResourceTypeAsStr(ResourceType v)
         SL_CASE_STR(ResourceType::eFence);
         SL_CASE_STR(ResourceType::eSwapchain);
         SL_CASE_STR(ResourceType::eHostFence);
+        case ResourceType::eUnknown: break;
+        case ResourceType::eCount: break;
     };
     return "Unknown";
 }
@@ -325,5 +379,97 @@ inline const char* getResourceLifecycleAsStr(ResourceLifecycle v)
     };
     return "Unknown";
 }
+
+SL_DISABLE_DEPRECATED_WARNINGS
+inline DLSSPreset resolveDLSSPreset(DLSSPreset preset)
+{
+    switch (preset)
+    {
+        case DLSSPreset::ePresetF:
+        case DLSSPreset::ePresetJ:
+        case DLSSPreset::ePresetK:
+            return preset;
+        default:
+            return DLSSPreset::eDefault;
+    }
+}
+SL_RESTORE_DEPRECATED_WARNINGS
+
+inline DLSSDPreset resolveDLSSDPreset(DLSSDPreset preset)
+{
+    return static_cast<DLSSDPreset>(resolveDLSSPreset(static_cast<DLSSPreset>(preset)));
+}
+
+
+
+// Advanced/internal functions that are not useful or necessary in the vast majority of integrations
+// and would just pollute the namespace and/or cause distractions.
+// But, may be useful in e.g. intermediary game engine integrations, etc.
+#ifndef __INTELLISENSE__
+
+//! Find a struct of type T
+template<typename T>
+T* findStruct(const void* ptr)
+{
+    auto base = static_cast<const BaseStructure*>(ptr);
+    while (base && base->structType != T::s_structType)
+    {
+        base = base->next;
+    }
+    return (T*)base;
+}
+
+//! Find a struct of type T, but stop the search if we find a struct of type S
+template<typename T, typename S>
+T* findStruct(const void* ptr)
+{
+    auto base = static_cast<const BaseStructure*>(ptr);
+    while (base && base->structType != T::s_structType)
+    {
+        base = base->next;
+
+        // If we find a struct of type S, we know should stop the search
+        if (base->structType == S::s_structType)
+        {
+            return nullptr;
+        }
+    }
+    return (T*)base;
+}
+
+template<typename T>
+T* findStruct(const void** ptr, uint32_t count)
+{
+    const BaseStructure* base{};
+    for (uint32_t i = 0; base == nullptr && i < count; i++)
+    {
+        base = static_cast<const BaseStructure*>(ptr[i]);
+        while (base && base->structType != T::s_structType)
+        {
+            base = base->next;
+        }
+    }
+    return (T*)base;
+}
+
+template<typename T>
+bool findStructs(const void** ptr, uint32_t count, std::vector<T*>& structs)
+{
+    for (uint32_t i = 0; i < count; i++)
+    {
+        auto base = static_cast<const BaseStructure*>(ptr[i]);
+        while (base)
+        {
+            if (base->structType == T::s_structType)
+            {
+                structs.push_back((T*)base);
+            }
+            base = base->next;
+        }
+    }
+    return structs.size() > 0;
+}
+
+#endif // __INTELLISENSE__
 
 } // namespace sl

@@ -22,6 +22,12 @@
 
 #pragma once
 
+#if __cplusplus >= 201402L
+#define SR_DEPRECATED_SHARPENING [[deprecated("Sharpness is not supported")]]
+#else
+#define SR_DEPRECATED_SHARPENING
+#endif
+
 namespace sl
 {
 
@@ -42,25 +48,35 @@ enum class DLSSPreset : uint32_t
     //! Default behavior, may or may not change after an OTA
     eDefault,
     //! Fixed DL models
-    ePresetA,
-    ePresetB,
-    ePresetC,
-    ePresetD,
-    ePresetE,
-    ePresetF,
-    ePresetG,
+                    // ePresetA removed, use presets J or K
+                    // ePresetB removed, use presets J or K
+                    // ePresetC removed, use presets J or K
+                    // ePresetD removed, use presets J or K
+                    // ePresetE removed, use presets J or K
+    ePresetF = 6,   // Intended for Ultra Perf/DLAA modes. The default preset for Ultra Perf
+    ePresetG = 7,   // Reverts to default, not recommended to use
+    ePresetH = 8,   // Reverts to default, not recommended to use
+    ePresetI = 9,   // Reverts to default, not recommended to use
+    ePresetJ = 10,  // Similar to preset K. Preset J might exhibit slightly less ghosting at the cost of extra flickering. Preset K is generally recommended over preset J
+    ePresetK = 11,  // Default preset for DLAA/Perf/Balanced/Quality modes that is transformer based. Best image quality preset at a higher performance cost
+    ePresetL = 12,  // Reverts to default, not recommended to use
+    ePresetM = 13,  // Reverts to default, not recommended to use
+    ePresetN = 14,  // Reverts to default, not recommended to use
+    ePresetO = 15,  // Reverts to default, not recommended to use
+
+    eCount
 };
 
 // {6AC826E4-4C61-4101-A92D-638D421057B8}
-SL_STRUCT(DLSSOptions, StructType({ 0x6ac826e4, 0x4c61, 0x4101, { 0xa9, 0x2d, 0x63, 0x8d, 0x42, 0x10, 0x57, 0xb8 } }), kStructVersion3)
+SL_STRUCT_BEGIN(DLSSOptions, StructType({ 0x6ac826e4, 0x4c61, 0x4101, { 0xa9, 0x2d, 0x63, 0x8d, 0x42, 0x10, 0x57, 0xb8 } }), kStructVersion3)
     //! Specifies which mode should be used
     DLSSMode mode = DLSSMode::eOff;
     //! Specifies output (final) target width
     uint32_t outputWidth = INVALID_UINT;
     //! Specifies output (final) target height
     uint32_t outputHeight = INVALID_UINT;
-    //! Specifies sharpening level in range [0,1]
-    float sharpness = 0.0f;
+    //! Specifies sharpening level in range [0,1] this is a deprecated field
+    float sharpness SR_DEPRECATED_SHARPENING = 0.0f;
     //! Specifies pre-exposure value
     float preExposure = 1.0f;
     //! Specifies exposure scale value
@@ -87,12 +103,12 @@ SL_STRUCT(DLSSOptions, StructType({ 0x6ac826e4, 0x4c61, 0x4101, { 0xa9, 0x2d, 0x
     Boolean alphaUpscalingEnabled = Boolean::eFalse;
 
     //! IMPORTANT: New members go here or if optional can be chained in a new struct, see sl_struct.h for details
-};
+SL_STRUCT_END()
 
 //! Returned by DLSS plugin
 //! 
 //! {EF1D0957-FD58-4DF7-B504-8B69D8AA6B76}
-SL_STRUCT(DLSSOptimalSettings, StructType({ 0xef1d0957, 0xfd58, 0x4df7, { 0xb5, 0x4, 0x8b, 0x69, 0xd8, 0xaa, 0x6b, 0x76 } }), kStructVersion1)
+SL_STRUCT_BEGIN(DLSSOptimalSettings, StructType({ 0xef1d0957, 0xfd58, 0x4df7, { 0xb5, 0x4, 0x8b, 0x69, 0xd8, 0xaa, 0x6b, 0x76 } }), kStructVersion1)
     //! Specifies render area width
     uint32_t optimalRenderWidth{};
     //! Specifies render area height
@@ -109,17 +125,17 @@ SL_STRUCT(DLSSOptimalSettings, StructType({ 0xef1d0957, 0xfd58, 0x4df7, { 0xb5, 
     uint32_t renderHeightMax{};
 
     //! IMPORTANT: New members go here or if optional can be chained in a new struct, see sl_struct.h for details
-};
+SL_STRUCT_END()
 
 //! Returned by DLSS plugin
 //! 
 //! {9366B056-8C01-463C-BB91-E68782636CE9}
-SL_STRUCT(DLSSState, StructType({ 0x9366b056, 0x8c01, 0x463c, { 0xbb, 0x91, 0xe6, 0x87, 0x82, 0x63, 0x6c, 0xe9 } }), kStructVersion1)
+SL_STRUCT_BEGIN(DLSSState, StructType({ 0x9366b056, 0x8c01, 0x463c, { 0xbb, 0x91, 0xe6, 0x87, 0x82, 0x63, 0x6c, 0xe9 } }), kStructVersion1)
     //! Specified the amount of memory expected to be used
     uint64_t estimatedVRAMUsageInBytes{};
 
     //! IMPORTANT: New members go here or if optional can be chained in a new struct, see sl_struct.h for details
-};
+SL_STRUCT_END()
 
 }
 
