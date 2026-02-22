@@ -102,7 +102,7 @@ const char* DlssPresetShortName( uint32_t ctl )
 {
     switch( ToDlssPresetEnum( ctl ) )
     {
-        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "Default";
+        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "Auto";
         case RG_NVIDIA_DLSS_PRESET_F: return "F";
         case RG_NVIDIA_DLSS_PRESET_J: return "J";
         case RG_NVIDIA_DLSS_PRESET_K: return "K";
@@ -114,7 +114,7 @@ const char* DlssPresetModelLabel( uint32_t ctl )
 {
     switch( ToDlssPresetEnum( ctl ) )
     {
-        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "Default";
+        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "NVIDIA Runtime";
         case RG_NVIDIA_DLSS_PRESET_F: return "CNN";
         case RG_NVIDIA_DLSS_PRESET_J: return "Transformer";
         case RG_NVIDIA_DLSS_PRESET_K: return "Transformer";
@@ -266,7 +266,7 @@ const char* ToString( RgNvidiaDlssPreset v )
 {
     switch( v )
     {
-        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "DEFAULT";
+        case RG_NVIDIA_DLSS_PRESET_DEFAULT: return "AUTO_RUNTIME_DEFAULT";
         case RG_NVIDIA_DLSS_PRESET_F: return "F";
         case RG_NVIDIA_DLSS_PRESET_J: return "J";
         case RG_NVIDIA_DLSS_PRESET_K: return "K";
