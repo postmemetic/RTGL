@@ -74,6 +74,7 @@ uint32_t  ctl_DlssPresetBalanced = 0;         // 0=Default, 1=F, 2=J, 3=K
 uint32_t  ctl_DlssPresetPerformance = 0;      // 0=Default, 1=F, 2=J, 3=K
 uint32_t  ctl_DlssPresetUltraPerformance = 0; // 0=Default, 1=F, 2=J, 3=K
 uint32_t  ctl_DlssPresetUltraQuality = 0;     // 0=Default, 1=F, 2=J, 3=K
+RgBool32  ctl_DenoiserEnable = 1;
 
 uint32_t GetFrameGenerationFrames()
 {
@@ -192,6 +193,7 @@ void UpdateWindowTitleWithUpscaleMode()
     static int lastPresetPerformance = -1;
     static int lastPresetUltraPerformance = -1;
     static int lastPresetUltraQuality = -1;
+    static int lastDenoiser = -1;
     if( !g_GlfwHandle || ( lastMode == int( ctl_UpscaleMode ) &&
                            lastQualityMode == int( ctl_RenderResolutionMode ) &&
                            lastFgVariant == int( ctl_FrameGenerationVariant ) &&
@@ -200,13 +202,15 @@ void UpdateWindowTitleWithUpscaleMode()
                            lastPresetBalanced == int( ctl_DlssPresetBalanced ) &&
                            lastPresetPerformance == int( ctl_DlssPresetPerformance ) &&
                            lastPresetUltraPerformance == int( ctl_DlssPresetUltraPerformance ) &&
-                           lastPresetUltraQuality == int( ctl_DlssPresetUltraQuality ) ) )
+                           lastPresetUltraQuality == int( ctl_DlssPresetUltraQuality ) &&
+                           lastDenoiser == int( ctl_DenoiserEnable ) ) )
     {
         return;
     }
 
     std::string title = std::string{ "RTGL1 Test | Upscaler: " } + GetUpscaleModeName() +
-                        " (press U/T/G/H to cycle)";
+                        " | Denoiser: " + ( ctl_DenoiserEnable ? "ON" : "OFF" ) +
+                        " (press U/T/G/H/J to cycle)";
     glfwSetWindowTitle( g_GlfwHandle, title.c_str() );
     std::cout << "[RtglExample] " << title << std::endl;
     lastMode = int( ctl_UpscaleMode );
@@ -218,6 +222,7 @@ void UpdateWindowTitleWithUpscaleMode()
     lastPresetPerformance = int( ctl_DlssPresetPerformance );
     lastPresetUltraPerformance = int( ctl_DlssPresetUltraPerformance );
     lastPresetUltraQuality = int( ctl_DlssPresetUltraQuality );
+    lastDenoiser = int( ctl_DenoiserEnable );
 }
 
 const char* ToString( RgRenderUpscaleTechnique v )
@@ -275,6 +280,7 @@ struct RequestedRenderState
     RgFrameGenerationMode    frameGeneration;
     RgRenderResolutionMode   resolutionMode;
     uint32_t                 frameGenerationFrames;
+    RgBool32                 denoiserEnable;
     RgNvidiaDlssPreset       dlssPresetDlaa;
     RgNvidiaDlssPreset       dlssPresetQuality;
     RgNvidiaDlssPreset       dlssPresetBalanced;
@@ -289,6 +295,7 @@ bool operator==( const RequestedRenderState& a, const RequestedRenderState& b )
            a.frameGeneration == b.frameGeneration &&
            a.resolutionMode == b.resolutionMode &&
            a.frameGenerationFrames == b.frameGenerationFrames &&
+           a.denoiserEnable == b.denoiserEnable &&
            a.dlssPresetDlaa == b.dlssPresetDlaa &&
            a.dlssPresetQuality == b.dlssPresetQuality &&
            a.dlssPresetBalanced == b.dlssPresetBalanced &&
@@ -319,6 +326,7 @@ void LogRenderStateChanges( RgInterface& rt, const RequestedRenderState& request
                   << ", frameGeneration=" << ToString( requested.frameGeneration )
                   << ", resolutionMode=" << ToString( requested.resolutionMode )
                   << ", frameGenerationFrames=" << requested.frameGenerationFrames
+                  << ", denoiser=" << ( requested.denoiserEnable ? "ON" : "OFF" )
                   << ", dlssPresetDlaa=" << ToString( requested.dlssPresetDlaa )
                   << ", dlssPresetQuality=" << ToString( requested.dlssPresetQuality )
                   << ", dlssPresetBalanced=" << ToString( requested.dlssPresetBalanced )
@@ -461,6 +469,7 @@ void ProcessInput()
     ControlSwitch( GLFW_KEY_T,          ctl_RenderResolutionMode, 5 );
     ControlSwitch( GLFW_KEY_G,          ctl_FrameGenerationVariant, 2 );
     ControlSwitch( GLFW_KEY_H,          GetActiveDlssPresetControl(), 4 );
+    ControlSwitch( GLFW_KEY_J,          ctl_DenoiserEnable );
     
 }
 
@@ -853,6 +862,7 @@ void MainLoop( RgInterface& rt, std::string_view gltfPath )
         {
             RequestedRenderState requested = {};
             requested.frameGenerationFrames = GetFrameGenerationFrames();
+            requested.denoiserEnable              = ctl_DenoiserEnable;
             requested.dlssPresetDlaa             = ToDlssPresetEnum( ctl_DlssPresetDlaa );
             requested.dlssPresetQuality          = ToDlssPresetEnum( ctl_DlssPresetQuality );
             requested.dlssPresetBalanced         = ToDlssPresetEnum( ctl_DlssPresetBalanced );
@@ -1132,13 +1142,28 @@ void MainLoop( RgInterface& rt, std::string_view gltfPath )
 
             auto sky = RgDrawFrameSkyParams{
                 .sType              = RG_STRUCTURE_TYPE_DRAW_FRAME_SKY_PARAMS,
-                .pNext              = &postEffects,
+                .pNext              = nullptr,
                 .skyType            = ctl_SkyboxEnable ? RG_SKY_TYPE_CUBEMAP : RG_SKY_TYPE_COLOR,
                 .skyColorDefault    = { 0.71f, 0.88f, 1.0f },
                 .skyColorMultiplier = ctl_SkyIntensity,
                 .skyColorSaturation = 1.0f,
                 .skyViewerPosition  = { 0, 0, 0 },
             };
+
+            auto illumination = RgDrawFrameIlluminationParams{
+                .sType                                       = RG_STRUCTURE_TYPE_DRAW_FRAME_ILLUMINATION_PARAMS,
+                .pNext                                       = &postEffects,
+                .maxBounceShadows                            = 2,
+                .enableSecondBounceForIndirect               = true,
+                .cellWorldSize                               = 1.0f,
+                .directDiffuseSensitivityToChange            = 0.5f,
+                .indirectDiffuseSensitivityToChange          = 0.2f,
+                .specularSensitivityToChange                 = 0.5f,
+                .polygonalLightSpotlightFactor               = 2.0f,
+                .lightUniqueIdIgnoreFirstPersonViewerShadows = nullptr,
+                .enableDenoiser                              = ctl_DenoiserEnable,
+            };
+            sky.pNext = &illumination;
 #if 0
                 .pSkyCubemapTextureName = "_external_/cubemap/0",
 #endif

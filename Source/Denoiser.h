@@ -45,6 +45,9 @@ public:
     void      Denoise( VkCommandBuffer                               cmd,
                        uint32_t                                      frameIndex,
                        const std::shared_ptr< const GlobalUniform >& uniform );
+    void      ResolveNoDenoiser( VkCommandBuffer                               cmd,
+                                 uint32_t                                      frameIndex,
+                                 const std::shared_ptr< const GlobalUniform >& uniform );
 
     void      OnShaderReload( const ShaderManager* shaderManager ) override;
 
@@ -66,6 +69,7 @@ private:
     VkPipeline                      temporalAccumulation;
     VkPipeline                      varianceEstimation;
     VkPipeline                      atrous[ 4 ];
+    VkPipeline                      resolveNoDenoiser;
 };
 
 }

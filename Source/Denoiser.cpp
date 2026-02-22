@@ -37,6 +37,7 @@ RTGL1::Denoiser::Denoiser( VkDevice                        _device,
     , temporalAccumulation( VK_NULL_HANDLE )
     , varianceEstimation( VK_NULL_HANDLE )
     , atrous{}
+    , resolveNoDenoiser( VK_NULL_HANDLE )
 {
     static_assert( sizeof( atrous ) / sizeof( VkPipeline ) == COMPUTE_SVGF_ATROUS_ITERATION_COUNT,
                    "Wrong atrous pipeline count" );
@@ -254,6 +255,51 @@ void RTGL1::Denoiser::Denoise( VkCommandBuffer                               cmd
     }
 }
 
+void RTGL1::Denoiser::ResolveNoDenoiser(
+    VkCommandBuffer                               cmd,
+    uint32_t                                      frameIndex,
+    const std::shared_ptr< const GlobalUniform >& uniform )
+{
+    typedef FramebufferImageIndex FI;
+
+    VkDescriptorSet sets[] = {
+        framebuffers->GetDescSet( frameIndex ),
+        uniform->GetDescSet( frameIndex ),
+    };
+
+    vkCmdBindDescriptorSets( cmd,
+                             VK_PIPELINE_BIND_POINT_COMPUTE,
+                             pipelineLayout,
+                             0,
+                             std::size( sets ),
+                             sets,
+                             0,
+                             nullptr );
+
+    CmdLabel label( cmd, "Resolve RT lighting (no denoiser)" );
+
+    FI fs[] = {
+        FI::FB_IMAGE_INDEX_UNFILTERED_DIRECT,
+        FI::FB_IMAGE_INDEX_UNFILTERED_SPECULAR,
+        FI::FB_IMAGE_INDEX_UNFILTERED_INDIR,
+        FI::FB_IMAGE_INDEX_THROUGHPUT,
+        FI::FB_IMAGE_INDEX_ALBEDO,
+        FI::FB_IMAGE_INDEX_IS_SKY,
+        FI::FB_IMAGE_INDEX_NORMAL,
+        FI::FB_IMAGE_INDEX_METALLIC_ROUGHNESS,
+        FI::FB_IMAGE_INDEX_PRE_FINAL,
+    };
+    framebuffers->BarrierMultiple( cmd, frameIndex, fs );
+
+    vkCmdBindPipeline( cmd, VK_PIPELINE_BIND_POINT_COMPUTE, resolveNoDenoiser );
+    vkCmdDispatch( cmd,
+                   Utils::GetWorkGroupCount( uniform->GetData()->renderWidth,
+                                             COMPUTE_SVGF_ATROUS_GROUP_SIZE_X ),
+                   Utils::GetWorkGroupCount( uniform->GetData()->renderHeight,
+                                             COMPUTE_SVGF_ATROUS_GROUP_SIZE_X ),
+                   1 );
+}
+
 void RTGL1::Denoiser::OnShaderReload( const ShaderManager* shaderManager )
 {
     DestroyPipelines();
@@ -281,6 +327,7 @@ void RTGL1::Denoiser::DestroyPipelines()
     vkDestroyPipeline( device, antifirefly, nullptr );
     vkDestroyPipeline( device, temporalAccumulation, nullptr );
     vkDestroyPipeline( device, varianceEstimation, nullptr );
+    vkDestroyPipeline( device, resolveNoDenoiser, nullptr );
 
     for( VkPipeline& p : gradientAtrous )
     {
@@ -297,6 +344,7 @@ void RTGL1::Denoiser::DestroyPipelines()
     antifirefly          = VK_NULL_HANDLE;
     temporalAccumulation = VK_NULL_HANDLE;
     varianceEstimation   = VK_NULL_HANDLE;
+    resolveNoDenoiser    = VK_NULL_HANDLE;
 }
 
 void RTGL1::Denoiser::CreatePipelines( const ShaderManager* shaderManager )
@@ -433,5 +481,19 @@ void RTGL1::Denoiser::CreatePipelines( const ShaderManager* shaderManager )
                 SET_DEBUG_NAME( device, atrous[ i ], VK_OBJECT_TYPE_PIPELINE, debugNames[ i ] );
             }
         }
+    }
+
+    {
+        VkComputePipelineCreateInfo plInfo = {
+            .sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            .stage  = shaderManager->GetStageInfo( "CResolveNoDenoiser" ),
+            .layout = pipelineLayout,
+        };
+
+        VkResult r = vkCreateComputePipelines(
+            device, VK_NULL_HANDLE, 1, &plInfo, nullptr, &resolveNoDenoiser );
+        VK_CHECKERROR( r );
+        SET_DEBUG_NAME(
+            device, resolveNoDenoiser, VK_OBJECT_TYPE_PIPELINE, "Resolve (no denoiser) pipeline" );
     }
 }

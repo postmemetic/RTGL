@@ -985,6 +985,9 @@ typedef struct RgDrawFrameIlluminationParams
     // E.g. first-person flashlight.
     // Null, if none.
     const uint64_t* lightUniqueIdIgnoreFirstPersonViewerShadows;
+    // Enables denoiser pass for direct/indirect illumination.
+    // Default: true
+    RgBool32        enableDenoiser;
 } RgDrawFrameIlluminationParams;
 
 // Can be linked after RgDrawFrameInfo.

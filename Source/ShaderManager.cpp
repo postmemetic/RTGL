@@ -87,6 +87,7 @@ static ShaderModuleDefinition G_SHADERS[] =
     { "CSVGFVarianceEstim",         "CmSVGFEstimateVariance.comp.spv"       },
     { "CSVGFAtrous",                "CmSVGFAtrous.comp.spv"                 },
     { "CSVGFAtrous_Iter0",          "CmSVGFAtrous_Iter0.comp.spv"           },
+    { "CResolveNoDenoiser",         "CmResolveNoDenoiser.comp.spv"          },
     { "CASVGFGradientAtrous",       "CmASVGFGradientAtrous.comp.spv"        },
     { "CBloomDownsample",           "CmBloomDownsample.comp.spv"            },
     { "CBloomUpsample",             "CmBloomUpsample.comp.spv"              },

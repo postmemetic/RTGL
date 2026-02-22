@@ -728,7 +728,14 @@ auto RTGL1::VulkanDevice::Render( VkCommandBuffer& cmd, const RgDrawFrameInfo& d
                                                           *rasterizer->GetRenderCubemap(),
                                                           *portalList,
                                                           *volumetric );
-        denoiser->Denoise( cmd, frameIndex, uniform );
+        if( pnext::get< RgDrawFrameIlluminationParams >( drawInfo ).enableDenoiser )
+        {
+            denoiser->Denoise( cmd, frameIndex, uniform );
+        }
+        else
+        {
+            denoiser->ResolveNoDenoiser( cmd, frameIndex, uniform );
+        }
         volumetric->ProcessScattering(
             cmd, frameIndex, *uniform, *blueNoise, *framebuffers, volumetricMaxHistoryLen );
         tonemapping->CalculateExposure( cmd, frameIndex, uniform );
