@@ -65,6 +65,147 @@ RgBool32  ctl_SkyboxEnable    = 1;
 float     ctl_Roughness       = 0.05f;
 float     ctl_Metallicity     = 1.0f;
 RgBool32  ctl_MoveBoxes       = 0;
+uint32_t  ctl_UpscaleMode     = 2; // 0=FSR2, 1=DLSS2, 2=DLSS3(no generated), 3=DLSS3+FG
+uint32_t  ctl_RenderResolutionMode = 3; // 0 = Ultra perf, 1 = Perf, 2 = Balanced, 3 = Quality, 4 = Native AA
+
+std::string GetUpscaleModeName()
+{
+    const char* renderResolutionMode = "Unknown";
+
+    switch( ctl_RenderResolutionMode )
+    {
+        case 0: renderResolutionMode = "Ultra Performance"; break;
+        case 1: renderResolutionMode = "Performance"; break;
+        case 2: renderResolutionMode = "Balanced"; break;
+        case 3: renderResolutionMode = "Quality"; break;
+        case 4: renderResolutionMode = "Native AA"; break;
+        default: renderResolutionMode = "Uknown"; break;
+    }
+
+    switch( ctl_UpscaleMode )
+    {
+        case 0: return std::string( "FSR2 " ) + renderResolutionMode;
+        case 1: return std::string( "DLSS2  ") + renderResolutionMode;
+        case 2: return std::string( "DLSS3 (no FG) " ) + renderResolutionMode;
+        case 3: return std::string( "DLSS3 + FG " ) + renderResolutionMode;
+        default: return std::string( "Unknown Upscaler " ) + renderResolutionMode;
+    }
+}
+
+void UpdateWindowTitleWithUpscaleMode()
+{
+    static int lastMode = -1;
+    static int lastQualityMode = -1;
+    if( !g_GlfwHandle || lastMode == int( ctl_UpscaleMode ) && lastQualityMode == int( ctl_RenderResolutionMode ))
+    {
+        return;
+    }
+
+    std::string title = std::string{ "RTGL1 Test | Upscaler: " } + GetUpscaleModeName() +
+                        " (press U and T to cycle)";
+    glfwSetWindowTitle( g_GlfwHandle, title.c_str() );
+    std::cout << "[RtglExample] " << title << std::endl;
+    lastMode = int( ctl_UpscaleMode );
+    lastQualityMode = int( ctl_RenderResolutionMode );
+}
+
+const char* ToString( RgRenderUpscaleTechnique v )
+{
+    switch( v )
+    {
+        case RG_RENDER_UPSCALE_TECHNIQUE_LINEAR: return "LINEAR";
+        case RG_RENDER_UPSCALE_TECHNIQUE_NEAREST: return "NEAREST";
+        case RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2: return "AMD_FSR2";
+        case RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS: return "NVIDIA_DLSS";
+        default: return "UNKNOWN";
+    }
+}
+
+const char* ToString( RgFrameGenerationMode v )
+{
+    switch( v )
+    {
+        case RG_FRAME_GENERATION_MODE_OFF: return "OFF";
+        case RG_FRAME_GENERATION_MODE_WITHOUT_GENERATED: return "WITHOUT_GENERATED";
+        case RG_FRAME_GENERATION_MODE_ON: return "ON";
+        default: return "UNKNOWN";
+    }
+}
+
+const char* ToString( RgRenderResolutionMode v )
+{
+    switch( v )
+    {
+        case RG_RENDER_RESOLUTION_MODE_CUSTOM: return "CUSTOM";
+        case RG_RENDER_RESOLUTION_MODE_ULTRA_PERFORMANCE: return "ULTRA_PERFORMANCE";
+        case RG_RENDER_RESOLUTION_MODE_PERFORMANCE: return "PERFORMANCE";
+        case RG_RENDER_RESOLUTION_MODE_BALANCED: return "BALANCED";
+        case RG_RENDER_RESOLUTION_MODE_QUALITY: return "QUALITY";
+        case RG_RENDER_RESOLUTION_MODE_NATIVE_AA: return "NATIVE_AA";
+        default: return "UNKNOWN";
+    }
+}
+
+struct RequestedRenderState
+{
+    RgRenderUpscaleTechnique upscaleTechnique;
+    RgFrameGenerationMode    frameGeneration;
+    RgRenderResolutionMode   resolutionMode;
+};
+
+bool operator==( const RequestedRenderState& a, const RequestedRenderState& b )
+{
+    return a.upscaleTechnique == b.upscaleTechnique &&
+           a.frameGeneration == b.frameGeneration &&
+           a.resolutionMode == b.resolutionMode;
+}
+
+void LogRenderStateChanges( RgInterface& rt, const RequestedRenderState& requested )
+{
+    static bool                initialized = false;
+    static RequestedRenderState prev       = {};
+    static int                 prevAvail   = -1;
+    static std::string         prevReason  = {};
+
+    const char* failReasonCstr = nullptr;
+    RgBool32    avail          = rt.rgUtilIsUpscaleTechniqueAvailable(
+        requested.upscaleTechnique, requested.frameGeneration, &failReasonCstr );
+    std::string failReason = failReasonCstr ? failReasonCstr : "";
+
+    bool stateChanged       = !initialized || !( requested == prev );
+    bool availabilityChange = !initialized || prevAvail != int( avail );
+    bool reasonChanged      = !initialized || prevReason != failReason;
+
+    if( stateChanged )
+    {
+        std::cout << "[RtglExample] Requested state: upscaler=" << ToString( requested.upscaleTechnique )
+                  << ", frameGeneration=" << ToString( requested.frameGeneration )
+                  << ", resolutionMode=" << ToString( requested.resolutionMode ) << std::endl;
+    }
+
+    if( stateChanged || availabilityChange || reasonChanged )
+    {
+        if( avail )
+        {
+            std::cout << "[RtglExample] Availability: AVAILABLE for current requested state"
+                      << std::endl;
+        }
+        else
+        {
+            std::cout << "[RtglExample] Availability: UNAVAILABLE for current requested state"
+                      << std::endl;
+            std::cout << "[RtglExample] Failure reason: "
+                      << ( failReason.empty() ? "<none provided>" : failReason ) << std::endl;
+            std::cout << "[RtglExample] Expected runtime behavior: fallback to non-requested path"
+                      << std::endl;
+        }
+    }
+
+    prev        = requested;
+    prevAvail   = int( avail );
+    prevReason  = std::move( failReason );
+    initialized = true;
+}
 
 bool ProcessWindow()
 {
@@ -122,8 +263,8 @@ void ProcessInput()
     static auto IsPressed    = []( int key ) { return glfwGetKey( g_GlfwHandle, ( key ) ) == GLFW_PRESS; };
     static auto ControlFloat = []( int key, float& value, float speed, float minval = 0.0f, float maxval = 1.0f ) {
             if( IsPressed( key ) ) {
-                if( IsPressed( GLFW_KEY_KP_ADD ) ) value += speed;
-                if( IsPressed( GLFW_KEY_KP_SUBTRACT ) ) value -= speed; }
+                if( IsPressed( GLFW_KEY_KP_ADD ) || IsPressed( GLFW_KEY_EQUAL ) ) value += speed;
+                if( IsPressed( GLFW_KEY_KP_SUBTRACT ) || IsPressed( GLFW_KEY_MINUS ) ) value -= speed; }
             value = std::clamp( value, minval, maxval ); };
     static auto lastTimePressed = std::chrono::system_clock::now();
     static auto ControlSwitch   = []( int key, uint32_t& value, uint32_t stateCount = 2 ) {
@@ -170,6 +311,9 @@ void ProcessInput()
     
     ControlSwitch( GLFW_KEY_TAB,        ctl_SkyboxEnable );
     ControlSwitch( GLFW_KEY_Z,          ctl_MoveBoxes );
+    ControlSwitch( GLFW_KEY_U,          ctl_UpscaleMode, 4 );
+    ControlSwitch( GLFW_KEY_T,          ctl_RenderResolutionMode, 5 );
+    
 }
 
 double GetCurrentTimeInSeconds()
@@ -550,17 +694,66 @@ void MainLoop( RgInterface& rt, std::string_view gltfPath )
     std::random_device rndDevice;
     std::mt19937       rnd( rndDevice() );
 
+    UpdateWindowTitleWithUpscaleMode();
+
 
     while( ProcessWindow() )
     {
         ProcessInput();
+        UpdateWindowTitleWithUpscaleMode();
 
         {
+            RequestedRenderState requested = {};
+
+            switch( ctl_UpscaleMode )
+            {
+                case 0: // FSR2
+                    requested.upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2;
+                    requested.frameGeneration  = RG_FRAME_GENERATION_MODE_OFF;
+                    break;
+                case 1: // DLSS2
+                    requested.upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS;
+                    requested.frameGeneration  = RG_FRAME_GENERATION_MODE_OFF;
+                    break;
+                case 2: // DLSS3 without presenting generated frames
+                    requested.upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS;
+                    requested.frameGeneration  = RG_FRAME_GENERATION_MODE_WITHOUT_GENERATED;
+                    break;
+                case 3: // DLSS3 + FG
+                    requested.upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS;
+                    requested.frameGeneration  = RG_FRAME_GENERATION_MODE_ON;
+                    break;
+                default: break;
+            }
+
+            switch( ctl_RenderResolutionMode )
+            {
+                case 0: // Ultra Performance
+                    requested.resolutionMode = RG_RENDER_RESOLUTION_MODE_ULTRA_PERFORMANCE;
+                    break;
+                case 1: // Performance
+                    requested.resolutionMode = RG_RENDER_RESOLUTION_MODE_PERFORMANCE;
+                    break;
+                case 2: // Balanced
+                    requested.resolutionMode = RG_RENDER_RESOLUTION_MODE_BALANCED;
+                    break;
+                case 3: // Quality
+                    requested.resolutionMode = RG_RENDER_RESOLUTION_MODE_QUALITY;
+                    break;
+                case 4: // Native AA
+                    requested.resolutionMode = RG_RENDER_RESOLUTION_MODE_NATIVE_AA;
+                    break;
+                default: break;
+            }
+
+            LogRenderStateChanges( rt, requested );
+
             auto resolution = RgStartFrameRenderResolutionParams{
                 .sType            = RG_STRUCTURE_TYPE_START_FRAME_RENDER_RESOLUTION_PARAMS,
                 .pNext            = nullptr,
-                .upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2,
-                .resolutionMode   = RG_RENDER_RESOLUTION_MODE_BALANCED,
+                .upscaleTechnique = requested.upscaleTechnique,
+                .resolutionMode   = requested.resolutionMode,
+                .frameGeneration  = requested.frameGeneration,
             };
 
             auto startInfo = RgStartFrameInfo{
@@ -855,10 +1048,10 @@ int main( int argc, char* argv[] )
 
         .rayCullBackFacingTriangles = false,
 
-        .allowTexCoordLayer1        = true,
-        .allowTexCoordLayer2        = true,
-        .allowTexCoordLayer3        = true,
-        .lightmapTexCoordLayerIndex = 1,
+        .allowTexCoordLayer1        = false,
+        .allowTexCoordLayer2        = false,
+        .allowTexCoordLayer3        = false,
+        .lightmapTexCoordLayerIndex = 0,
 
         .rasterizedMaxVertexCount = 1 << 24,
         .rasterizedMaxIndexCount  = 1 << 25,
