@@ -1,5 +1,6 @@
 /*
 
+Copyright (c) 2025-2026 Brian Schulman
 Copyright (c) 2024 V.Shirokii
 Copyright (c) 2021 Sultim Tsyrendashiev
 

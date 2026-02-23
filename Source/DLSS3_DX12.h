@@ -1,5 +1,6 @@
 /*
 
+Copyright (c) 2025-2026 Brian Schulman
 Copyright (c) 2024 V.Shirokii
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

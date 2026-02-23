@@ -1,3 +1,4 @@
+// Copyright (c) 2025-2026 Brian Schulman
 // Copyright (c) 2020-2021 Sultim Tsyrendashiev
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
